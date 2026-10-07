@@ -573,7 +573,7 @@ function doAct(act) {
   else if (act === "signoff") doSignOff();
   else if (act === "exit") doExit();
   else if (act === "print") toast("Sent to the printer queue. (Simulated.)");
-  else if (act === "save") toast("Saved to the Filing Cabinet.");
+  else if (act === "save") { toast("Saved to the Filing Cabinet."); speak("File's done"); }
   else if (act === "keyword") { $("keyword").focus(); }
   else if (act === "autool") modal("Automatic AOL", "Automatic AOL would sign on, grab mail, and hang up to save hourly charges. In this recreation it just marks the inbox as downloaded.", [{label:"OK", primary:true}]);
   else if (act === "cascade") cascade();
@@ -623,7 +623,7 @@ async function startDial() {
     ["Connecting to America Online…", "Contacting the host."],
     ["Checking password…", "Screen name " + name + " — password stays on this PC."]
   ];
-  if ($("speaker").checked) playHandshake(loc === "busy");
+  if ($("speaker").checked) playHandshake(num, loc === "busy");
   for (let i = 0; i < steps.length; i++) {
     if (state.cancelled) return;
     $("dialStatus").textContent = steps[i][0];
@@ -642,7 +642,6 @@ async function startDial() {
     }
   }
   if (state.cancelled) return;
-  stopAudio();
   $("dial").classList.add("hidden");
   connected();
 }
@@ -667,7 +666,7 @@ function connected() {
   openWelcome();
   openBuddy();
   const unread = mail.filter(m => m.box === "in" && m.unread && (m.to === state.name || m.to === "SteveCaseFan")).length;
-  setTimeout(() => youveGotMail(unread), 600);
+  setTimeout(() => { speak("Welcome"); youveGotMail(unread); }, 500);
 }
 
 function youveGotMail(n) {
@@ -905,6 +904,7 @@ function openRoom(name) {
   const log = w.querySelector("#clog");
   function add(cls, text) { const d = document.createElement("div"); d.className = cls; d.textContent = text; log.appendChild(d); log.scrollTop = log.scrollHeight; }
   add("sys", "You have entered " + room.name + ". " + room.topic);
+  if ($("speaker").checked) door();
   add("sys", members[0] + ": wb");
   const iv = setInterval(() => {
     if (!document.body.contains(w)) return clearInterval(iv);
@@ -1035,9 +1035,10 @@ function tickClock() {
 }
 setInterval(tickClock, 10000); tickClock();
 
-/* audio */
+/* audio — synthesized dial-up and the AOL cues. Not the copyrighted recordings. */
 function ctx() {
   if (!state.audio) state.audio = new (window.AudioContext || window.webkitAudioContext)();
+  if (state.audio.state === "suspended") state.audio.resume();
   return state.audio;
 }
 function tone(freq, t, dur, type, gain) {
@@ -1046,62 +1047,124 @@ function tone(freq, t, dur, type, gain) {
   const g = c.createGain();
   o.type = type || "sine";
   o.frequency.value = freq;
-  g.gain.value = gain || 0.05;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(gain || 0.05, t + 0.02);
+  g.gain.setValueAtTime(gain || 0.05, t + Math.max(0.03, dur - 0.03));
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g); g.connect(c.destination);
-  o.start(t); o.stop(t + dur);
+  o.start(t); o.stop(t + dur + 0.02);
 }
-function noise(t, dur, gain) {
+function noise(t, dur, gain, freq) {
   const c = ctx();
-  const n = c.createBuffer(1, c.sampleRate * dur, c.sampleRate);
+  const n = c.createBuffer(1, Math.max(1, c.sampleRate * dur), c.sampleRate);
   const d = n.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   const s = c.createBufferSource();
   s.buffer = n;
   const f = c.createBiquadFilter();
-  f.type = "bandpass"; f.frequency.value = 1800; f.Q.value = 0.7;
-  const g = c.createGain(); g.gain.value = gain || 0.08;
+  f.type = "bandpass"; f.frequency.value = freq || 1800; f.Q.value = 0.6;
+  const g = c.createGain();
+  g.gain.setValueAtTime(gain || 0.08, t);
   s.connect(f); f.connect(g); g.connect(c.destination);
   s.start(t); s.stop(t + dur);
 }
-function playHandshake(busy) {
+function sweep(t, from, to, dur, type, gain) {
+  const c = ctx();
+  const o = c.createOscillator();
+  const g = c.createGain();
+  o.type = type || "sawtooth";
+  o.frequency.setValueAtTime(from, t);
+  o.frequency.exponentialRampToValueAtTime(Math.max(40, to), t + dur);
+  g.gain.value = gain || 0.03;
+  o.connect(g); g.connect(c.destination);
+  o.start(t); o.stop(t + dur);
+}
+function answerTone(t) {
+  const c = ctx();
+  const o = c.createOscillator();
+  const g = c.createGain();
+  o.frequency.value = 2100;
+  o.connect(g); g.connect(c.destination);
+  g.gain.setValueAtTime(0.07, t);
+  g.gain.setValueAtTime(-0.07, t + 0.45);
+  g.gain.setValueAtTime(0.07, t + 0.9);
+  o.start(t); o.stop(t + 1.15);
+}
+function playHandshake(number, busy) {
   try {
-    const c = ctx(); if (c.state === "suspended") c.resume();
-    const t = c.currentTime + 0.05;
-    tone(350, t, 0.6, "sine", 0.04); tone(440, t, 0.6, "sine", 0.04);
+    const c = ctx();
+    const t0 = c.currentTime + 0.05;
     const dtmf = {1:[697,1209],2:[697,1336],3:[697,1477],4:[770,1209],5:[770,1336],6:[770,1477],7:[852,1209],8:[852,1336],9:[852,1477],0:[941,1336]};
-    let at = t + 0.7;
-    "17035550142".split("").forEach(d => {
-      const p = dtmf[d]; if (!p) return;
-      tone(p[0], at, 0.08, "sine", 0.05); tone(p[1], at, 0.08, "sine", 0.05);
-      at += 0.14;
+    tone(350, t0, 0.7, "sine", 0.045);
+    tone(440, t0, 0.7, "sine", 0.04);
+    let at = t0 + 0.85;
+    String(number || "17035550142").split("").forEach(d => {
+      if (d === ",") { at += 0.35; return; }
+      const p = dtmf[d];
+      if (!p) return;
+      tone(p[0], at, 0.09, "sine", 0.06);
+      tone(p[1], at, 0.09, "sine", 0.06);
+      at += 0.16;
     });
     if (busy) {
-      for (let i = 0; i < 4; i++) { tone(480, at + i*0.5, 0.2, "sine", 0.06); tone(620, at + i*0.5, 0.2, "sine", 0.06); }
+      for (let i = 0; i < 6; i++) {
+        tone(480, at + i * 0.5, 0.22, "sine", 0.07);
+        tone(620, at + i * 0.5, 0.22, "sine", 0.06);
+      }
       return;
     }
-    tone(440, at, 0.4, "sine", 0.04); tone(480, at, 0.4, "sine", 0.03);
-    at += 1.0;
-    tone(2100, at, 0.4, "sine", 0.06);
-    noise(at + 0.45, 1.4, 0.12);
-    tone(1800, at + 0.8, 0.3, "square", 0.03);
-    tone(600, at + 1.3, 0.5, "sawtooth", 0.02);
+    tone(440, at, 1.1, "sine", 0.045);
+    tone(480, at, 1.1, "sine", 0.04);
+    at += 1.35;
+    answerTone(at);
+    at += 1.2;
+    noise(at, 0.35, 0.14, 1200);
+    sweep(at + 0.15, 800, 2400, 0.4, "square", 0.025);
+    noise(at + 0.5, 0.4, 0.12, 2200);
+    sweep(at + 0.7, 3000, 600, 0.45, "sawtooth", 0.03);
+    noise(at + 1.15, 0.55, 0.1, 1500);
+    tone(1800, at + 1.3, 0.25, "square", 0.03);
+    tone(1200, at + 1.7, 0.3, "triangle", 0.03);
+    noise(at + 2.0, 0.35, 0.08, 900);
+    tone(2100, at + 2.3, 0.2, "sine", 0.03);
   } catch (e) {}
 }
 function stopAudio() { try { if (state.audio) { state.audio.close(); state.audio = null; } } catch (e) {} }
 function chime() {
   try {
     const c = ctx(); const t = c.currentTime;
-    tone(523, t, 0.12, "sine", 0.06); tone(659, t+0.12, 0.18, "sine", 0.06);
+    tone(880, t, 0.09, "sine", 0.06);
+    tone(1175, t + 0.1, 0.16, "sine", 0.055);
   } catch (e) {}
 }
 function door() {
-  try { const c = ctx(); tone(740, c.currentTime, 0.08, "square", 0.03); } catch (e) {}
+  try {
+    const c = ctx(); const t = c.currentTime;
+    noise(t, 0.18, 0.05, 400);
+    tone(220, t, 0.12, "triangle", 0.04);
+    tone(330, t + 0.08, 0.14, "sine", 0.04);
+    tone(494, t + 0.16, 0.12, "sine", 0.035);
+  } catch (e) {}
 }
 function hangup() {
-  try { const c = ctx(); noise(c.currentTime, 0.25, 0.1); tone(400, c.currentTime, 0.15, "sawtooth", 0.04); } catch (e) {}
+  try {
+    const c = ctx(); const t = c.currentTime;
+    noise(t, 0.12, 0.12, 800);
+    tone(320, t, 0.08, "square", 0.04);
+    tone(180, t + 0.07, 0.1, "sawtooth", 0.03);
+  } catch (e) {}
 }
 function speak(text) {
-  try { if (window.speechSynthesis) { const u = new SpeechSynthesisUtterance(text); u.rate = 1; u.pitch = 1.1; speechSynthesis.speak(u); } } catch (e) {}
+  try {
+    if (!$("speaker").checked || !window.speechSynthesis) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.92;
+    u.pitch = 0.8;
+    const voices = speechSynthesis.getVoices();
+    const male = voices.find(v => /male|david|daniel|alex/i.test(v.name));
+    if (male) u.voice = male;
+    speechSynthesis.speak(u);
+  } catch (e) {}
 }
 
 window.runSelfTest = async function() {
