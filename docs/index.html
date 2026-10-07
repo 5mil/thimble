@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>thimble — connect</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="desk">
+  <header class="bar">
+    <span class="logo" aria-hidden="true"></span>
+    <strong>thimble</strong>
+    <span class="sub">a sewing notion that dials</span>
+    <span class="clock" id="clock"></span>
+  </header>
+
+  <main>
+    <section class="card" id="signon">
+      <div class="brand">
+        <span class="triangle" aria-hidden="true"></span>
+        <div>
+          <div class="am">AMERICA</div>
+          <div class="on">Online-ish</div>
+        </div>
+      </div>
+      <p class="lede">Welcome. Please connect. The phone line is a metaphor. The busy signal is not.</p>
+      <label>Select screen name <input id="name" value="GuestOf1999" maxlength="16" autocomplete="off"></label>
+      <label>Enter password <input id="pass" type="password" value="hunter2" autocomplete="off"></label>
+      <label>Select location
+        <select id="loc">
+          <option value="home">Home — kitchen phone, (703) 555-0142</option>
+          <option value="office">Office — dial 9, feel important</option>
+          <option value="hotel">Hotel — the cord is short on purpose</option>
+          <option value="busy">Busy exchange — historically accurate</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="speaker" checked> Modem speaker (beeps, not a real modem)</label>
+      <div class="actions">
+        <button type="button" id="setup">Setup</button>
+        <button type="button" class="primary" id="connect">Connect</button>
+      </div>
+      <p class="fine">Satire. Nothing is dialed. Your password stays in this tab and is immediately forgotten.</p>
+    </section>
+
+    <section class="card hidden" id="dial">
+      <div class="brand small">
+        <span class="triangle" aria-hidden="true"></span>
+        <div class="on">Connecting</div>
+      </div>
+      <div class="panels">
+        <div class="panel" id="p1"></div>
+        <div class="panel" id="p2"></div>
+        <div class="panel" id="p3"></div>
+      </div>
+      <p class="status" id="status">Initializing metaphor...</p>
+      <p class="steps" id="steps"></p>
+      <div class="actions"><button type="button" id="cancel">Cancel</button></div>
+    </section>
+
+    <section class="card hidden" id="online">
+      <div class="welcome">
+        <aside>
+          <span class="triangle big" aria-hidden="true"></span>
+          <button type="button" data-ch="channels">Channels</button>
+          <button type="button" data-ch="mail">You Have Mail</button>
+          <button type="button" data-ch="people">People</button>
+          <p class="who" id="who"></p>
+        </aside>
+        <div>
+          <h1 id="hello">Welcome</h1>
+          <p id="blurb"></p>
+          <div class="stories" id="stories"></div>
+          <form class="kw" id="kwform">
+            <label>Keyword <input id="keyword" placeholder="mail, chat, news, busy"></label>
+            <button type="submit">Go</button>
+          </form>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" id="signoff">Sign Off</button>
+      </div>
+    </section>
+
+    <section class="card hidden" id="bye">
+      <h1>Goodbye</h1>
+      <p>from thimble. The line is free. Someone in the house can use the phone now.</p>
+    </section>
+  </main>
+
+  <footer>Not America Online. Not a modem. Not a bill. <a href="https://github.com/5mil/thimble">the repo</a></footer>
+</div>
+<div class="toast hidden" id="toast"></div>
+<script src="connect.js"></script>
+</body>
+</html>
