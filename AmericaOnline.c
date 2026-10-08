@@ -1,6 +1,6 @@
-/* America Online — People Connection
-   Windows client. Same rooms as the lobby branch page.
-   Messages go through the public ntfy relay. Nothing private. */
+/* America Online for Windows.
+   Talks to server.py: sign up, sign on, rooms, mail.
+   Password is sent to the host you type. It is not saved in the program. */
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winhttp.h>
@@ -8,29 +8,28 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define IDC_NAME 101
-#define IDC_ROOM 102
-#define IDC_SIGN 103
-#define IDC_LOG 104
-#define IDC_IN 105
-#define IDC_SEND 106
-#define IDC_ROOMS 107
-#define IDC_WHO 108
-#define IDC_STATUS 109
+#define IDC_HOST 101
+#define IDC_PORT 102
+#define IDC_NAME 103
+#define IDC_PASS 104
+#define IDC_ROOM 105
+#define IDC_SIGNUP 106
+#define IDC_SIGN 107
+#define IDC_LOG 108
+#define IDC_IN 109
+#define IDC_SEND 110
+#define IDC_ROOMS 111
+#define IDC_MAIL 112
+#define IDC_STATUS 113
 #define WM_NET (WM_APP + 1)
 
 static const char *ROOMS[] = {"Lobby", "Thirtysomething", "Computer Help", "Sports Bar", "New Member Lounge"};
-static const char *SLUGS[] = {"lobby", "thirtysomething", "computer-help", "sports-bar", "new-member-lounge"};
-static HWND g_hwnd, g_name, g_room, g_sign, g_log, g_in, g_send, g_rooms, g_who, g_status;
-static char g_screen[32];
-static char g_slug[64];
-static char g_since[64] = "10m";
+static HWND g_hwnd, g_host, g_port, g_name, g_pass, g_room, g_signup, g_sign;
+static HWND g_log, g_in, g_send, g_rooms, g_mail, g_status;
+static char g_screen[32], g_token[80], g_host_s[80];
+static int g_port_n = 8080, g_room_i, g_since;
 static volatile LONG g_online;
 static HANDLE g_thread;
-
-static void slug_for(int i, char *out) {
-    strcpy(out, SLUGS[i]);
-}
 
 static void ui(const char *text) {
     char *copy = (char *)HeapAlloc(GetProcessHeap(), 0, strlen(text) + 1);
@@ -39,14 +38,20 @@ static void ui(const char *text) {
     PostMessageA(g_hwnd, WM_NET, 0, (LPARAM)copy);
 }
 
-static int http_call(const wchar_t *verb, const wchar_t *path, const char *body, char *out, int outlen) {
+static int http_call(const wchar_t *verb, const wchar_t *path, const char *body, const char *token, char *out, int outlen) {
+    wchar_t whost[80];
+    MultiByteToWideChar(CP_UTF8, 0, g_host_s, -1, whost, 80);
     HINTERNET ses = WinHttpOpen(L"AmericaOnline/5.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!ses) return 0;
-    HINTERNET con = WinHttpConnect(ses, L"ntfy.sh", INTERNET_DEFAULT_HTTPS_PORT, 0);
+    HINTERNET con = WinHttpConnect(ses, whost, (INTERNET_PORT)g_port_n, 0);
     if (!con) { WinHttpCloseHandle(ses); return 0; }
-    HINTERNET req = WinHttpOpenRequest(con, verb, path, NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
+    HINTERNET req = WinHttpOpenRequest(con, verb, path, NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
     if (!req) { WinHttpCloseHandle(con); WinHttpCloseHandle(ses); return 0; }
-    const wchar_t *hdr = L"Content-Type: text/plain\r\n";
+    wchar_t hdr[200], wtoken[80];
+    if (token && token[0]) {
+        MultiByteToWideChar(CP_UTF8, 0, token, -1, wtoken, 80);
+        swprintf(hdr, 200, L"Content-Type: application/json\r\nAuthorization: Bearer %s\r\n", wtoken);
+    } else wcscpy(hdr, L"Content-Type: application/json\r\n");
     DWORD blen = body ? (DWORD)strlen(body) : 0;
     BOOL ok = WinHttpSendRequest(req, hdr, (DWORD)-1, body ? (LPVOID)body : WINHTTP_NO_REQUEST_DATA, blen, blen, 0);
     if (ok) ok = WinHttpReceiveResponse(req, NULL);
@@ -59,28 +64,7 @@ static int http_call(const wchar_t *verb, const wchar_t *path, const char *body,
     WinHttpCloseHandle(req);
     WinHttpCloseHandle(con);
     WinHttpCloseHandle(ses);
-    return ok ? (n ? n : 1) : 0;
-}
-
-static void json_escape(const char *in, char *out, int n) {
-    int j = 0;
-    for (int i = 0; in[i] && j < n - 2; i++) {
-        char c = in[i];
-        if (c == '"' || c == '\\') { out[j++] = '\\'; out[j++] = c; }
-        else if (c == '\n' || c == '\r') out[j++] = ' ';
-        else out[j++] = c;
-    }
-    out[j] = 0;
-}
-
-static void publish(const char *kind, const char *name, const char *text) {
-    char esc[400], body[640], path[128];
-    wchar_t wpath[128];
-    json_escape(text ? text : "", esc, sizeof(esc));
-    snprintf(body, sizeof(body), "{\"kind\":\"%s\",\"name\":\"%s\",\"text\":\"%s\",\"id\":\"%lu\"}", kind, name, esc, GetTickCount());
-    snprintf(path, sizeof(path), "/thimble-aol-%s", g_slug);
-    MultiByteToWideChar(CP_UTF8, 0, path, -1, wpath, 128);
-    http_call(L"POST", wpath, body, NULL, 0);
+    return ok ? 1 : 0;
 }
 
 static void field(const char *json, const char *key, char *out, int n) {
@@ -92,45 +76,97 @@ static void field(const char *json, const char *key, char *out, int n) {
     p += strlen(pat);
     int j = 0;
     while (*p && *p != '"' && j < n - 1) {
-        if (*p == '\\' && p[1]) { p++; }
+        if (*p == '\\' && p[1]) p++;
         out[j++] = *p++;
     }
     out[j] = 0;
 }
 
-static void handle_line(const char *line) {
-    char id[48], message[800], kind[16], name[40], text[400];
-    field(line, "id", id, sizeof(id));
-    field(line, "message", message, sizeof(message));
-    if (id[0]) strncpy(g_since, id, sizeof(g_since) - 1);
-    if (!message[0]) return;
-    field(message, "kind", kind, sizeof(kind));
-    field(message, "name", name, sizeof(name));
-    field(message, "text", text, sizeof(text));
-    if (!name[0]) return;
-    char shown[500];
-    if (!strcmp(kind, "chat")) snprintf(shown, sizeof(shown), "%s:  %s", name, text);
-    else if (!strcmp(kind, "join")) snprintf(shown, sizeof(shown), "%s has entered the room.", name);
-    else if (!strcmp(kind, "leave")) snprintf(shown, sizeof(shown), "%s has left the room.", name);
-    else return;
-    ui(shown);
+static void json_escape(const char *in, char *out, int n) {
+    int j = 0;
+    for (int i = 0; in[i] && j < n - 2; i++) {
+        if (in[i] == '"' || in[i] == '\\') { out[j++] = '\\'; out[j++] = in[i]; }
+        else if (in[i] == '\n' || in[i] == '\r') out[j++] = ' ';
+        else out[j++] = in[i];
+    }
+    out[j] = 0;
+}
+
+static void set_online_ui(BOOL on) {
+    int sign[] = {0};
+    ShowWindow(g_host, on ? SW_HIDE : SW_SHOW);
+    ShowWindow(g_port, on ? SW_HIDE : SW_SHOW);
+    ShowWindow(g_name, on ? SW_HIDE : SW_SHOW);
+    ShowWindow(g_pass, on ? SW_HIDE : SW_SHOW);
+    ShowWindow(g_room, on ? SW_HIDE : SW_SHOW);
+    ShowWindow(g_signup, on ? SW_HIDE : SW_SHOW);
+    ShowWindow(g_sign, on ? SW_HIDE : SW_SHOW);
+    ShowWindow(g_log, on ? SW_SHOW : SW_HIDE);
+    ShowWindow(g_in, on ? SW_SHOW : SW_HIDE);
+    ShowWindow(g_send, on ? SW_SHOW : SW_HIDE);
+    ShowWindow(g_rooms, on ? SW_SHOW : SW_HIDE);
+    ShowWindow(g_mail, on ? SW_SHOW : SW_HIDE);
+    (void)sign;
+    SetWindowTextA(g_hwnd, on ? "America Online — People Connection" : "America Online — Sign On");
+}
+
+static int auth(const char *path) {
+    char name[32], pass[64], body[200], raw[800], token[80], screen[32];
+    GetWindowTextA(g_name, name, 31);
+    GetWindowTextA(g_pass, pass, 63);
+    GetWindowTextA(g_host, g_host_s, 79);
+    char port[8];
+    GetWindowTextA(g_port, port, 7);
+    g_port_n = atoi(port);
+    if (!g_port_n) g_port_n = 8080;
+    json_escape(name, screen, sizeof(screen));
+    json_escape(pass, token, sizeof(token));
+    snprintf(body, sizeof(body), "{\"screenName\":\"%s\",\"password\":\"%s\"}", screen, token);
+    if (!http_call(L"POST", path[0] == 's' ? L"/api/signup" : L"/api/login", body, NULL, raw, sizeof(raw))) {
+        MessageBoxA(g_hwnd, "The server did not answer. Start server.py on that host.", "America Online", MB_OK);
+        return 0;
+    }
+    if (!strstr(raw, "\"ok\": true") && !strstr(raw, "\"ok\":true")) {
+        char err[180];
+        field(raw, "error", err, sizeof(err));
+        MessageBoxA(g_hwnd, err[0] ? err : raw, "America Online", MB_OK);
+        return 0;
+    }
+    field(raw, "token", g_token, sizeof(g_token));
+    field(raw, "screenName", g_screen, sizeof(g_screen));
+    g_room_i = (int)SendMessageA(g_room, CB_GETCURSEL, 0, 0);
+    if (g_room_i < 0) g_room_i = 0;
+    g_since = 0;
+    g_online = 1;
+    SendMessageA(g_log, LB_RESETCONTENT, 0, 0);
+    set_online_ui(TRUE);
+    char status[160];
+    snprintf(status, sizeof(status), "Online — %s — %s — %s:%d", g_screen, ROOMS[g_room_i], g_host_s, g_port_n);
+    SetWindowTextA(g_status, status);
+    return 1;
 }
 
 static DWORD WINAPI poll_thread(LPVOID unused) {
     (void)unused;
     while (g_online) {
-        char path[160], raw[48000];
+        char path[160], raw[16000];
         wchar_t wpath[160];
-        snprintf(path, sizeof(path), "/thimble-aol-%s/json?poll=1&since=%s", g_slug, g_since);
+        snprintf(path, sizeof(path), "/api/messages?room=%s&since=%d", ROOMS[g_room_i], g_since);
+        for (char *p = path; *p; p++) if (*p == ' ') *p = '+';
         MultiByteToWideChar(CP_UTF8, 0, path, -1, wpath, 160);
-        if (http_call(L"GET", wpath, NULL, raw, sizeof(raw))) {
-            char *p = raw;
-            while (*p) {
-                char *nl = strchr(p, '\n');
-                if (nl) *nl = 0;
-                if (*p) handle_line(p);
-                if (!nl) break;
-                p = nl + 1;
+        if (http_call(L"GET", wpath, NULL, g_token, raw, sizeof(raw))) {
+            const char *p = raw;
+            while ((p = strstr(p, "\"id\":"))) {
+                int id = atoi(p + 5);
+                char name[40], body[300], shown[360];
+                field(p, "name", name, sizeof(name));
+                field(p, "body", body, sizeof(body));
+                if (id > g_since && name[0]) {
+                    g_since = id;
+                    snprintf(shown, sizeof(shown), "%s:  %s", name, body);
+                    ui(shown);
+                }
+                p += 5;
             }
         }
         for (int i = 0; i < 20 && g_online; i++) Sleep(100);
@@ -138,118 +174,99 @@ static DWORD WINAPI poll_thread(LPVOID unused) {
     return 0;
 }
 
-static void set_online_ui(BOOL on) {
-    ShowWindow(g_name, on ? SW_HIDE : SW_SHOW);
-    ShowWindow(g_room, on ? SW_HIDE : SW_SHOW);
-    ShowWindow(g_sign, on ? SW_HIDE : SW_SHOW);
-    ShowWindow(g_log, on ? SW_SHOW : SW_HIDE);
-    ShowWindow(g_in, on ? SW_SHOW : SW_HIDE);
-    ShowWindow(g_send, on ? SW_SHOW : SW_HIDE);
-    ShowWindow(g_rooms, on ? SW_SHOW : SW_HIDE);
-    ShowWindow(g_who, on ? SW_SHOW : SW_HIDE);
-    if (on) SetWindowTextA(g_hwnd, "America Online — People Connection");
-    else SetWindowTextA(g_hwnd, "America Online — Sign On");
-}
-
-static void sign_on(void) {
-    char name[32];
-    GetWindowTextA(g_name, name, 31);
-    int n = (int)strlen(name);
-    if (n < 3 || n > 16 || strchr(name, ' ')) {
-        MessageBoxA(g_hwnd, "Screen names are 3 to 16 characters with no spaces.", "America Online", MB_OK);
-        return;
-    }
-    strcpy(g_screen, name);
-    int room = (int)SendMessageA(g_room, CB_GETCURSEL, 0, 0);
-    if (room < 0) room = 0;
-    slug_for(room, g_slug);
-    strcpy(g_since, "10m");
-    SendMessageA(g_log, LB_RESETCONTENT, 0, 0);
-    set_online_ui(TRUE);
-    char status[128];
-    snprintf(status, sizeof(status), "Online — %s — %s", g_screen, ROOMS[room]);
-    SetWindowTextA(g_status, status);
-    g_online = 1;
-    publish("join", g_screen, "");
+static void start_session(const char *which) {
+    if (!auth(which)) return;
+    if (g_thread) CloseHandle(g_thread);
     g_thread = CreateThread(NULL, 0, poll_thread, NULL, 0, NULL);
-    Beep(2100, 80);
-}
-
-static void sign_off(void) {
-    if (g_online) {
-        g_online = 0;
-        publish("leave", g_screen, "");
-        if (g_thread) { WaitForSingleObject(g_thread, 2000); CloseHandle(g_thread); g_thread = NULL; }
-    }
-    set_online_ui(FALSE);
-    SetWindowTextA(g_status, "Offline — modem speaker was a beep, the room was real");
 }
 
 static void send_chat(void) {
     if (!g_online) return;
-    char text[240];
+    char text[240], esc[480], body[640], raw[200];
+    wchar_t wpath[80];
     GetWindowTextA(g_in, text, 239);
     if (!text[0]) return;
     SetWindowTextA(g_in, "");
-    publish("chat", g_screen, text);
+    json_escape(text, esc, sizeof(esc));
+    snprintf(body, sizeof(body), "{\"room\":\"%s\",\"text\":\"%s\"}", ROOMS[g_room_i], esc);
+    wcscpy(wpath, L"/api/messages");
+    http_call(L"POST", wpath, body, g_token, raw, sizeof(raw));
+}
+
+static void read_mail(void) {
+    char raw[8000];
+    if (!http_call(L"GET", L"/api/mail", NULL, g_token, raw, sizeof(raw))) return;
+    ui("--- Mail ---");
+    const char *p = raw;
+    int any = 0;
+    while ((p = strstr(p, "\"subject\":\""))) {
+        char subject[80], sender[40], body[240], shown[400];
+        field(p, "subject", subject, sizeof(subject));
+        field(p, "sender", sender, sizeof(sender));
+        field(p, "body", body, sizeof(body));
+        snprintf(shown, sizeof(shown), "Mail from %s: %s — %s", sender, subject, body);
+        ui(shown);
+        any = 1;
+        p += 11;
+    }
+    if (!any) ui("No mail.");
 }
 
 static void layout(void) {
     RECT r;
     GetClientRect(g_hwnd, &r);
     int w = r.right, h = r.bottom;
-    MoveWindow(g_name, 24, 70, w - 48, 24, TRUE);
-    MoveWindow(g_room, 24, 120, w - 48, 120, TRUE);
-    MoveWindow(g_sign, w - 140, 160, 100, 28, TRUE);
+    MoveWindow(g_host, 24, 56, 180, 22, TRUE);
+    MoveWindow(g_port, 212, 56, 70, 22, TRUE);
+    MoveWindow(g_name, 24, 104, 260, 22, TRUE);
+    MoveWindow(g_pass, 24, 150, 260, 22, TRUE);
+    MoveWindow(g_room, 24, 196, 260, 120, TRUE);
+    MoveWindow(g_signup, 24, 236, 100, 28, TRUE);
+    MoveWindow(g_sign, 136, 236, 100, 28, TRUE);
     MoveWindow(g_rooms, 8, 8, 160, h - 64, TRUE);
-    MoveWindow(g_log, 176, 8, w - 176 - 150, h - 64, TRUE);
-    MoveWindow(g_who, w - 142, 8, 134, h - 64, TRUE);
-    MoveWindow(g_in, 176, h - 50, w - 176 - 230, 24, TRUE);
-    MoveWindow(g_send, w - 220, h - 52, 70, 26, TRUE);
-    MoveWindow(g_status, 8, h - 22, w - 16, 18, TRUE);
+    MoveWindow(g_log, 176, 8, w - 184, h - 92, TRUE);
+    MoveWindow(g_in, 176, h - 76, w - 280, 22, TRUE);
+    MoveWindow(g_send, w - 96, h - 78, 80, 26, TRUE);
+    MoveWindow(g_mail, 8, h - 48, 160, 24, TRUE);
+    MoveWindow(g_status, 176, h - 46, w - 190, 18, TRUE);
 }
 
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
-    case WM_CREATE: {
+    case WM_CREATE:
         g_hwnd = hwnd;
-        CreateWindowA("STATIC", "Select Screen Name", WS_CHILD | WS_VISIBLE, 24, 48, 200, 18, hwnd, NULL, NULL, NULL);
-        g_name = CreateWindowA("EDIT", "SteveCaseFan", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 24, 70, 300, 24, hwnd, (HMENU)IDC_NAME, NULL, NULL);
-        CreateWindowA("STATIC", "People Connection room", WS_CHILD | WS_VISIBLE, 24, 100, 220, 18, hwnd, NULL, NULL, NULL);
-        g_room = CreateWindowA("COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 24, 120, 300, 140, hwnd, (HMENU)IDC_ROOM, NULL, NULL);
+        CreateWindowA("STATIC", "Server host and port", WS_CHILD | WS_VISIBLE, 24, 36, 220, 16, hwnd, NULL, NULL, NULL);
+        g_host = CreateWindowA("EDIT", "127.0.0.1", WS_CHILD | WS_VISIBLE | WS_BORDER, 24, 56, 180, 22, hwnd, (HMENU)IDC_HOST, NULL, NULL);
+        g_port = CreateWindowA("EDIT", "8080", WS_CHILD | WS_VISIBLE | WS_BORDER, 212, 56, 70, 22, hwnd, (HMENU)IDC_PORT, NULL, NULL);
+        CreateWindowA("STATIC", "Select Screen Name", WS_CHILD | WS_VISIBLE, 24, 86, 200, 16, hwnd, NULL, NULL, NULL);
+        g_name = CreateWindowA("EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER, 24, 104, 260, 22, hwnd, (HMENU)IDC_NAME, NULL, NULL);
+        CreateWindowA("STATIC", "Enter Password", WS_CHILD | WS_VISIBLE, 24, 132, 200, 16, hwnd, NULL, NULL, NULL);
+        g_pass = CreateWindowA("EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_PASSWORD, 24, 150, 260, 22, hwnd, (HMENU)IDC_PASS, NULL, NULL);
+        CreateWindowA("STATIC", "Room", WS_CHILD | WS_VISIBLE, 24, 178, 80, 16, hwnd, NULL, NULL, NULL);
+        g_room = CreateWindowA("COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 24, 196, 260, 140, hwnd, (HMENU)IDC_ROOM, NULL, NULL);
         for (int i = 0; i < 5; i++) SendMessageA(g_room, CB_ADDSTRING, 0, (LPARAM)ROOMS[i]);
         SendMessageA(g_room, CB_SETCURSEL, 0, 0);
-        g_sign = CreateWindowA("BUTTON", "Sign On", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 24, 160, 100, 28, hwnd, (HMENU)IDC_SIGN, NULL, NULL);
-        g_rooms = CreateWindowA("LISTBOX", "", WS_CHILD | LBS_NOTIFY | WS_BORDER | WS_VSCROLL, 8, 8, 160, 200, hwnd, (HMENU)IDC_ROOMS, NULL, NULL);
+        g_signup = CreateWindowA("BUTTON", "Sign Up", WS_CHILD | WS_VISIBLE, 24, 236, 100, 28, hwnd, (HMENU)IDC_SIGNUP, NULL, NULL);
+        g_sign = CreateWindowA("BUTTON", "Sign On", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 136, 236, 100, 28, hwnd, (HMENU)IDC_SIGN, NULL, NULL);
+        g_rooms = CreateWindowA("LISTBOX", "", WS_CHILD | LBS_NOTIFY | WS_BORDER, 8, 8, 160, 200, hwnd, (HMENU)IDC_ROOMS, NULL, NULL);
         for (int i = 0; i < 5; i++) SendMessageA(g_rooms, LB_ADDSTRING, 0, (LPARAM)ROOMS[i]);
-        g_log = CreateWindowA("LISTBOX", "", WS_CHILD | WS_BORDER | WS_VSCROLL | LBS_NOINTEGRALHEIGHT, 176, 8, 400, 300, hwnd, (HMENU)IDC_LOG, NULL, NULL);
-        g_who = CreateWindowA("LISTBOX", "", WS_CHILD | WS_BORDER | WS_VSCROLL, 580, 8, 120, 300, hwnd, (HMENU)IDC_WHO, NULL, NULL);
-        g_in = CreateWindowA("EDIT", "", WS_CHILD | WS_BORDER | ES_AUTOHSCROLL, 176, 320, 300, 24, hwnd, (HMENU)IDC_IN, NULL, NULL);
-        g_send = CreateWindowA("BUTTON", "Send", WS_CHILD | BS_DEFPUSHBUTTON, 490, 318, 70, 26, hwnd, (HMENU)IDC_SEND, NULL, NULL);
-        g_status = CreateWindowA("STATIC", "Offline. Sign on to join a live room.", WS_CHILD | WS_VISIBLE, 8, 360, 500, 18, hwnd, (HMENU)IDC_STATUS, NULL, NULL);
-        CreateWindowA("STATIC", "AMERICA  Online", WS_CHILD | WS_VISIBLE, 24, 12, 260, 24, hwnd, NULL, NULL, NULL);
+        g_log = CreateWindowA("LISTBOX", "", WS_CHILD | WS_BORDER | WS_VSCROLL | LBS_NOINTEGRALHEIGHT, 176, 8, 400, 280, hwnd, (HMENU)IDC_LOG, NULL, NULL);
+        g_in = CreateWindowA("EDIT", "", WS_CHILD | WS_BORDER | ES_AUTOHSCROLL, 176, 300, 300, 22, hwnd, (HMENU)IDC_IN, NULL, NULL);
+        g_send = CreateWindowA("BUTTON", "Send", WS_CHILD, 490, 298, 70, 26, hwnd, (HMENU)IDC_SEND, NULL, NULL);
+        g_mail = CreateWindowA("BUTTON", "You've Got Mail", WS_CHILD, 8, 320, 150, 24, hwnd, (HMENU)IDC_MAIL, NULL, NULL);
+        g_status = CreateWindowA("STATIC", "Offline. Run server.py, then sign up.", WS_CHILD | WS_VISIBLE, 24, 276, 420, 18, hwnd, (HMENU)IDC_STATUS, NULL, NULL);
+        CreateWindowA("STATIC", "AMERICA  Online", WS_CHILD | WS_VISIBLE, 24, 8, 240, 22, hwnd, NULL, NULL, NULL);
         layout();
         return 0;
-    }
-    case WM_SIZE:
-        layout();
-        return 0;
+    case WM_SIZE: layout(); return 0;
     case WM_COMMAND:
-        if (LOWORD(wp) == IDC_SIGN) sign_on();
+        if (LOWORD(wp) == IDC_SIGNUP) start_session("signup");
+        if (LOWORD(wp) == IDC_SIGN) start_session("login");
         if (LOWORD(wp) == IDC_SEND) send_chat();
-        if (LOWORD(wp) == IDC_IN && HIWORD(wp) == EN_CHANGE) {}
+        if (LOWORD(wp) == IDC_MAIL && g_online) read_mail();
         if (HIWORD(wp) == LBN_DBLCLK && LOWORD(wp) == IDC_ROOMS && g_online) {
             int i = (int)SendMessageA(g_rooms, LB_GETCURSEL, 0, 0);
-            if (i >= 0) {
-                publish("leave", g_screen, "");
-                slug_for(i, g_slug);
-                strcpy(g_since, "10m");
-                SendMessageA(g_log, LB_RESETCONTENT, 0, 0);
-                char status[128];
-                snprintf(status, sizeof(status), "Online — %s — %s", g_screen, ROOMS[i]);
-                SetWindowTextA(g_status, status);
-                publish("join", g_screen, "");
-            }
+            if (i >= 0) { g_room_i = i; g_since = 0; SendMessageA(g_log, LB_RESETCONTENT, 0, 0); ui("You have entered the room."); }
         }
         return 0;
     case WM_NET: {
@@ -258,16 +275,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             SendMessageA(g_log, LB_ADDSTRING, 0, (LPARAM)text);
             int count = (int)SendMessageA(g_log, LB_GETCOUNT, 0, 0);
             SendMessageA(g_log, LB_SETTOPINDEX, count - 1, 0);
-            if (strncmp(text, g_screen, strlen(g_screen)) != 0) Beep(880, 40);
             HeapFree(GetProcessHeap(), 0, text);
         }
         return 0;
     }
-    case WM_KEYDOWN:
-        if (wp == VK_RETURN && g_online) send_chat();
-        return 0;
     case WM_DESTROY:
-        sign_off();
+        g_online = 0;
         PostQuitMessage(0);
         return 0;
     }
@@ -279,11 +292,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show) {
     WNDCLASSA wc = {0};
     wc.lpfnWndProc = WndProc;
     wc.hInstance = inst;
-    wc.lpszClassName = "AmericaOnlineChat";
+    wc.lpszClassName = "AmericaOnlineHost";
     wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     RegisterClassA(&wc);
-    HWND hwnd = CreateWindowA("AmericaOnlineChat", "America Online — Sign On", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 760, 480, NULL, NULL, inst, NULL);
+    HWND hwnd = CreateWindowA("AmericaOnlineHost", "America Online — Sign On", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 760, 480, NULL, NULL, inst, NULL);
     ShowWindow(hwnd, show);
     MSG msg;
     while (GetMessageA(&msg, NULL, 0, 0)) {

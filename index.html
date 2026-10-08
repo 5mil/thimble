@@ -2,184 +2,117 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>America Online — People Connection</title>
+<title>America Online</title>
 <style>
-  :root { --navy:#000080; --win:#d4d0c8; --lav:#c9c8ef; }
-  * { box-sizing:border-box; }
-  html, body { margin:0; height:100%; }
-  body { font-family:Tahoma, "MS Sans Serif", sans-serif; background:#008080; color:#142033; }
-  button, input, select { font-family:inherit; font-size:14px; }
-  button { cursor:pointer; }
-  .hidden { display:none !important; }
-  #stage { min-height:100%; display:flex; align-items:center; justify-content:center; padding:16px; }
-  .card, #app { width:min(980px, 100%); background:#f7f5ef; border:3px solid #16356b; box-shadow:2px 2px 0 #000; }
-  .brand { display:flex; align-items:center; justify-content:center; gap:12px; padding:18px 12px 6px; }
-  .am { letter-spacing:3px; font-size:13px; font-weight:700; color:#16356b; }
-  .on { font-family:Georgia, serif; font-style:italic; font-size:36px; color:#16356b; line-height:.9; }
-  .form { padding:8px 36px 16px; }
+  body { margin:0; background:#008080; font-family:Tahoma, sans-serif; color:#142033; }
+  #stage { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:16px; }
+  .card, #app { width:min(980px, 100%); background:#f7f5ef; border:3px solid #16356b; }
+  .brand { text-align:center; padding:16px 12px 4px; color:#16356b; }
+  .on { font-family:Georgia, serif; font-style:italic; font-size:34px; }
+  .form { padding:8px 36px 12px; }
   label { display:block; margin:8px 0 4px; font-size:13px; }
-  input, select { width:100%; border:1px solid #7d8794; padding:6px 8px; background:#fff; }
+  input, select, textarea { width:100%; padding:6px; box-sizing:border-box; }
   .row { display:flex; justify-content:flex-end; gap:8px; padding:0 36px 16px; }
-  .btn { min-width:88px; height:28px; background:var(--win); border:2px solid; border-color:#fff #404040 #404040 #fff; }
-  .btn.primary { font-weight:700; }
-  .fine { text-align:center; font-size:11px; color:#555; padding-bottom:12px; }
-  #app { background:var(--win); display:flex; flex-direction:column; height:min(720px, calc(100vh - 24px)); }
-  #title { height:24px; background:linear-gradient(90deg,#000080,#1084d0); color:#fff; display:flex; align-items:center; padding:0 8px; font-weight:700; font-size:13px; }
-  #menu { display:flex; gap:10px; padding:4px 8px; background:var(--win); font-size:13px; }
-  #menu span { cursor:pointer; padding:2px 6px; }
-  #menu span:hover { background:#000080; color:#fff; }
+  button { height:28px; min-width:88px; }
+  .hidden { display:none !important; }
+  #app { height:min(720px, calc(100vh - 24px)); display:flex; flex-direction:column; background:#d4d0c8; }
+  #title { background:linear-gradient(90deg,#000080,#1084d0); color:#fff; padding:4px 8px; font-weight:700; }
   #body { flex:1; display:flex; min-height:0; background:#fff; }
-  #rooms, #members { width:180px; background:#f4f7fb; padding:8px; overflow:auto; font-size:13px; }
-  #rooms { border-right:1px solid #c5c5c5; }
-  #members { border-left:1px solid #c5c5c5; }
-  .room, .who { padding:6px; cursor:pointer; border:1px solid transparent; }
-  .room.on, .room:hover { background:#000080; color:#fff; }
-  #center { flex:1; display:flex; flex-direction:column; min-width:0; }
-  #log { flex:1; overflow:auto; padding:8px; font-size:13px; font-family:Verdana, sans-serif; background:#fff; }
-  .me { color:#003399; }
-  .sys { color:#666; font-style:italic; }
-  .host { color:#6a2a2a; }
-  #composer { display:flex; gap:6px; padding:8px; background:var(--win); border-top:1px solid #fff; }
+  #rooms, #side { width:180px; padding:8px; background:#f4f7fb; overflow:auto; }
+  #center { flex:1; display:flex; flex-direction:column; }
+  #log, #mail { flex:1; overflow:auto; padding:8px; font-size:13px; }
+  .me { color:#003399; } .sys { color:#666; font-style:italic; }
+  #composer { display:flex; gap:6px; padding:8px; background:#d4d0c8; }
   #composer input { flex:1; }
-  #status { height:22px; background:var(--win); border-top:1px solid #808080; font-size:11px; display:flex; align-items:center; padding:0 8px; gap:10px; }
+  .err { color:#800; font-size:13px; min-height:18px; }
 </style>
 </head>
 <body>
 <div id="stage">
   <section class="card" id="signon">
-    <div class="brand">
-      <svg width="64" height="54" viewBox="0 0 74 62" aria-hidden="true"><polygon points="37,2 72,60 2,60" fill="#16356b"/><circle cx="37" cy="36" r="14" fill="#f7f4ea"/><g transform="translate(20,22)" fill="#f0c419" stroke="#16356b" stroke-width="1.2"><circle cx="10" cy="5" r="3.1"/><path d="M8 9 L14 12 L20 9 L16 16 L22 22 L14 18 L10 26 L9 17 L2 18 Z"/></g></svg>
-      <div><div class="am">AMERICA</div><div class="on">Online</div></div>
-    </div>
+    <div class="brand"><div>AMERICA</div><div class="on">Online</div></div>
     <div class="form">
       <label>Select Screen Name</label>
-      <input id="screenName" maxlength="16" value="SteveCaseFan" autocomplete="off">
-      <label>Enter a room</label>
-      <select id="roomPick">
-        <option>Lobby</option>
-        <option>Thirtysomething</option>
-        <option>Computer Help</option>
-        <option>Sports Bar</option>
-        <option>New Member Lounge</option>
-      </select>
-      <p class="fine" style="text-align:left">People Connection. Messages go to everyone in the same room, through a public relay. Do not type a real password.</p>
+      <input id="screenName" value="SteveCaseFan" maxlength="16">
+      <label>Enter Password</label>
+      <input id="password" type="password" value="">
+      <label>Room</label>
+      <select id="room"></select>
+      <div class="err" id="err"></div>
+      <p style="font-size:12px;color:#555">Sign up once. The screen name is stored on this server. The password is stored as a hash.</p>
     </div>
-    <div class="row"><button class="btn primary" id="enter">Sign On</button></div>
+    <div class="row">
+      <button id="signup">Sign Up</button>
+      <button id="signin">Sign On</button>
+    </div>
   </section>
-
   <section id="app" class="hidden">
-    <div id="title">America Online — People Connection</div>
-    <div id="menu"><span id="signOff">Sign Off</span><span id="whoami"></span></div>
+    <div id="title">America Online</div>
     <div id="body">
       <aside id="rooms"></aside>
       <div id="center">
         <div id="log"></div>
-        <form id="composer"><input id="cin" placeholder="Talk in the room" autocomplete="off"><button class="btn primary" type="submit">Send</button></form>
+        <div id="mail" class="hidden"></div>
+        <form id="composer"><input id="cin" placeholder="Talk in the room"><button>Send</button></form>
+        <form id="mailform" class="hidden">
+          <input id="to" placeholder="To screen name">
+          <input id="subject" placeholder="Subject">
+          <textarea id="body" placeholder="Message" style="height:70px"></textarea>
+          <button>Send Mail</button>
+        </form>
       </div>
-      <aside id="members"><b>In this room</b><div id="whoList"></div></aside>
+      <aside id="side"><b id="whoami"></b><div id="flag"></div><button id="readMail" type="button">Read Mail</button><button id="writeMail" type="button">Write</button><button id="backChat" type="button">People</button><div id="online"></div></aside>
     </div>
-    <div id="status"><span id="stRoom">Offline</span><span id="stLink">connecting…</span><span style="margin-left:auto">Live room · not AOL</span></div>
   </section>
 </div>
 <script>
-const ROOMS = ["Lobby", "Thirtysomething", "Computer Help", "Sports Bar", "New Member Lounge"];
-const me = { name: "", id: Math.random().toString(36).slice(2, 10), room: "Lobby" };
-const seen = new Set();
-const present = new Map();
-let source = null;
-
+let token = "", room = "Lobby", since = 0, timer = null;
 const $ = (id) => document.getElementById(id);
-function topic(room) { return "thimble-aol-" + room.toLowerCase().replace(/[^a-z0-9]+/g, "-"); }
-function add(cls, text) {
-  const d = document.createElement("div");
-  d.className = cls;
-  d.textContent = text;
-  $("log").appendChild(d);
-  $("log").scrollTop = $("log").scrollHeight;
+async function api(path, payload) {
+  const res = await fetch(path, { method: payload ? "POST" : "GET", headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) }, body: payload ? JSON.stringify(payload) : undefined });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
 }
-function paintRooms() {
-  $("rooms").innerHTML = "<b>Rooms</b>" + ROOMS.map(r => `<div class="room${r===me.room?" on":""}" data-room="${r}">${r}</div>`).join("");
+function add(cls, text) { const d = document.createElement("div"); d.className = cls; d.textContent = text; $("log").appendChild(d); $("log").scrollTop = $("log").scrollHeight; }
+async function enter(path) {
+  $("err").textContent = "";
+  try {
+    const data = await api(path, { screenName: $("screenName").value.trim(), password: $("password").value });
+    token = data.token; room = $("room").value; since = 0;
+    $("signon").classList.add("hidden"); $("app").classList.remove("hidden");
+    $("whoami").textContent = data.screenName;
+    $("log").innerHTML = "";
+    add("sys", "Online as " + data.screenName + ". This room is stored on the server.");
+    poll(); timer = setInterval(poll, 2000);
+  } catch (e) { $("err").textContent = e.message; }
 }
-function paintWho() {
-  const now = Date.now();
-  let html = "";
-  present.forEach((t, name) => { if (now - t < 120000) html += `<div class="who">● ${name}</div>`; });
-  $("whoList").innerHTML = html || "<div class=\"sys\">just you, for a moment</div>";
+async function poll() {
+  const data = await api("/api/messages?room=" + encodeURIComponent(room) + "&since=" + since);
+  data.messages.forEach(m => { since = m.id; add(m.name === $("whoami").textContent ? "me" : "", m.name + ":  " + m.body); });
+  $("flag").textContent = data.unread ? data.unread + " unread" : "No new mail";
+  $("online").innerHTML = "<b>Online</b>" + data.online.map(n => "<div>● " + n + "</div>").join("");
 }
-async function publish(payload) {
-  await fetch("https://ntfy.sh/" + topic(me.room), {
-    method: "POST",
-    body: JSON.stringify(payload)
-  });
-}
-function handle(raw) {
-  let msg;
-  try { msg = JSON.parse(raw); } catch (e) { return; }
-  if (!msg || !msg.id || seen.has(msg.id)) return;
-  seen.add(msg.id);
-  if (msg.kind === "join") {
-    present.set(msg.name, Date.now());
-    if (msg.id !== me.id) add("sys", msg.name + " has entered the room.");
-  } else if (msg.kind === "leave") {
-    present.delete(msg.name);
-    add("sys", msg.name + " has left the room.");
-  } else if (msg.kind === "chat") {
-    present.set(msg.name, Date.now());
-    add(msg.name === me.name ? "me" : "", msg.name + ":  " + msg.text);
-  } else if (msg.kind === "here") {
-    present.set(msg.name, Date.now());
-  }
-  paintWho();
-}
-function connect(room) {
-  if (source) { source.close(); source = null; }
-  me.room = room;
-  $("stRoom").textContent = room;
-  $("stLink").textContent = "listening";
-  $("log").innerHTML = "";
-  add("sys", "You have entered " + room + " as " + me.name + ".");
-  add("sys", "Anyone on this page in the same room can answer.");
-  paintRooms();
-  present.set(me.name, Date.now());
-  paintWho();
-  source = new EventSource("https://ntfy.sh/" + topic(room) + "/sse");
-  source.onmessage = (ev) => {
-    try { handle(JSON.parse(ev.data).message); } catch (e) {}
-  };
-  source.onerror = () => { $("stLink").textContent = "reconnecting"; };
-  publish({ kind:"join", name:me.name, id:me.id });
-}
-function enter() {
-  const name = $("screenName").value.trim();
-  if (name.length < 3 || name.length > 16 || /\s/.test(name)) { alert("Screen names are 3 to 16 characters, no spaces."); return; }
-  me.name = name;
-  $("signon").classList.add("hidden");
-  $("app").classList.remove("hidden");
-  $("whoami").textContent = name;
-  connect($("roomPick").value);
-}
-async function send(text) {
-  const clean = text.replace(/\s+/g, " ").trim().slice(0, 240);
-  if (!clean) return;
-  await publish({ kind:"chat", name:me.name, text:clean, id:Math.random().toString(36).slice(2, 12) });
-}
-$("enter").onclick = enter;
-$("screenName").onkeydown = (e) => { if (e.key === "Enter") enter(); };
-$("composer").onsubmit = (e) => { e.preventDefault(); const t = $("cin").value; $("cin").value = ""; send(t); };
-$("rooms").onclick = (e) => {
-  const room = e.target.getAttribute("data-room");
-  if (!room || room === me.room) return;
-  publish({ kind:"leave", name:me.name, id:Math.random().toString(36).slice(2) });
-  connect(room);
+$("signup").onclick = () => enter("/api/signup");
+$("signin").onclick = () => enter("/api/login");
+$("composer").onsubmit = async (e) => {
+  e.preventDefault();
+  const text = $("cin").value.trim(); if (!text) return; $("cin").value = "";
+  await api("/api/messages", { room, text });
 };
-$("signOff").onclick = () => {
-  publish({ kind:"leave", name:me.name, id:Math.random().toString(36).slice(2) });
-  if (source) source.close();
-  location.reload();
+$("rooms").onclick = (e) => { const r = e.target.getAttribute("data-room"); if (!r) return; room = r; since = 0; $("log").innerHTML = ""; add("sys", "You have entered " + r + "."); };
+$("readMail").onclick = async () => {
+  const data = await api("/api/mail");
+  $("log").classList.add("hidden"); $("composer").classList.add("hidden"); $("mailform").classList.add("hidden"); $("mail").classList.remove("hidden");
+  $("mail").innerHTML = data.mail.map(m => `<p><b>${m.subject}</b> from ${m.sender}<br>${m.body}</p>`).join("") || "<p>No mail.</p>";
 };
-paintRooms();
-setInterval(() => { if (me.name) publish({ kind:"here", name:me.name, id:Math.random().toString(36).slice(2) }); }, 25000);
+$("writeMail").onclick = () => { $("log").classList.add("hidden"); $("composer").classList.add("hidden"); $("mail").classList.add("hidden"); $("mailform").classList.remove("hidden"); };
+$("backChat").onclick = () => { $("mail").classList.add("hidden"); $("mailform").classList.add("hidden"); $("log").classList.remove("hidden"); $("composer").classList.remove("hidden"); };
+$("mailform").onsubmit = async (e) => { e.preventDefault(); await api("/api/mail", { to: $("to").value.trim(), subject: $("subject").value, body: $("body").value }); $("body").value = ""; $("backChat").click(); };
+api("/api/rooms").then(data => {
+  $("room").innerHTML = data.rooms.map(r => `<option>${r}</option>`).join("");
+  $("rooms").innerHTML = "<b>Rooms</b>" + data.rooms.map(r => `<div data-room="${r}">${r}</div>`).join("");
+});
 </script>
 </body>
 </html>
