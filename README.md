@@ -1,21 +1,32 @@
-# America Online, one host
+# America Online, written in Zig
 
-This branch is a working sign-on, not a sketch. One process keeps the members.
+The host and the Windows window are Zig. The page is still HTML, because a browser has to draw it.
 
-## Run the server
+## Run the host
 
 ```
-python server.py
+zig build run
 ```
 
-It listens on port 8080 and writes `aol.db` beside itself. Open http://127.0.0.1:8080 to sign up in the browser. Screen names are saved. Passwords are stored as a hash, not as text.
+Or build it once:
 
-Rooms: Lobby, Thirtysomething, Computer Help, Sports Bar, New Member Lounge. Chat lines and mail stay in the database after you close the window.
+```
+zig build-exe src/server.zig -OReleaseSafe -femit-bin=aol-server
+./aol-server
+```
+
+It listens on port 8080 and keeps members in `aol.db` next to the program. Open http://127.0.0.1:8080 to sign up. Screen names are stored. Passwords are stored as a PBKDF2 hash.
+
+`zig build-exe src/server.zig` then `./server --selftest` checks signup, a lobby line, and mail.
 
 ## Windows client
 
-`AmericaOnline.exe` is the window. Put the server machine in Host. Use `127.0.0.1` on the same PC, or that PC's address from another one. Sign Up once, then Sign On. Send talks to whoever is in the same room on that server. You've Got Mail reads the inbox.
+`AmericaOnline.exe` is built from `src/client.zig`. Put the host machine in Host. Use `127.0.0.1` and `8080` on the same PC. Sign Up once, then Sign On. Send writes into the room. You've Got Mail reads the inbox.
 
-`Launch America Online.bat` starts the window.
+Rebuild the window from Linux or macOS with:
 
-The page and the program use the same accounts. A name taken in the browser is taken in the program.
+```
+zig build-exe src/client.zig -target x86_64-windows-gnu -OReleaseSafe -lwinhttp --subsystem windows -femit-bin=AmericaOnline.exe
+```
+
+The page and the program use the same accounts on that host.
