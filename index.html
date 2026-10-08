@@ -8,7 +8,12 @@
   :root { --navy:#001a66; --ink:#142033; --lav:#c9c8ef; --gold:#f0c419; --win:#d4d0c8; }
   * { box-sizing:border-box; }
   html, body { margin:0; height:100%; }
-  body { font-family:Tahoma, "Segoe UI", sans-serif; color:var(--ink); background:#5a7a72; }
+  body { font-family:Tahoma, "MS Sans Serif", sans-serif; color:var(--ink); background:#008080; }
+  #stage { min-height:100%; display:flex; align-items:center; justify-content:center; padding:22px 12px 36px; background:#008080; }
+  #app { width:min(1080px, 100%); height:min(760px, calc(100vh - 24px)); background:var(--win); border:2px solid; border-color:#fff #404040 #404040 #fff; display:flex; flex-direction:column; box-shadow:2px 2px 0 #000; }
+  .tool { width:28px; height:26px; display:inline-flex; align-items:center; justify-content:center; border:1px solid transparent; }
+  .buddy { width:168px; border-left:1px solid #9bb; background:#f4f7fb; padding:8px; font-size:12px; }
+  .buddy div { padding:3px 0; }
   button, input, select, textarea { font-family:inherit; font-size:14px; }
   button { cursor:pointer; }
   .hidden { display:none !important; }
@@ -114,12 +119,13 @@
       <span id="signOff">Sign Off</span>
     </div>
     <div id="tools">
-      <span class="tool" data-view="mail">Read</span>
-      <span class="tool" data-view="compose">Write</span>
-      <span class="tool" data-view="people">People</span>
-      <span class="tool" data-view="weather">Weather</span>
-      <span class="tool" data-view="stocks">Quotes</span>
-      <span class="tool" data-kw="pictures">Pictures</span>
+      <span class="tool" title="Read Mail" data-view="mail">📬</span>
+      <span class="tool" title="Write" data-view="compose">✉️</span>
+      <span class="tool" title="People" data-view="people">👥</span>
+      <span class="tool" title="Favorites" data-view="channels">⭐</span>
+      <span class="tool" title="Weather" data-view="weather">⛅</span>
+      <span class="tool" title="Quotes" data-view="stocks">📈</span>
+      <span class="tool" title="Pictures" data-kw="pictures">📷</span>
       <form class="kw" id="kwform"><span>Keyword</span><input id="keyword" placeholder="mail, chat, news"><button class="btn" type="submit">Go</button></form>
     </div>
     <div id="body">
@@ -131,6 +137,7 @@
         <div class="mailflag" data-view="people"><span>👥</span><div><b>People</b><div style="font-size:11px">Lobby</div></div></div>
       </aside>
       <div id="main"></div>
+      <aside class="buddy" id="buddy"><b>Buddies Online</b><div>● CoolDude95</div><div>● SoccerMom22</div><div>● BuffyFan</div><div>● ModemQueen</div><div style="color:#666;margin-top:8px">Keyword: BuddyView</div></aside>
     </div>
     <div id="status"><span id="stOnline">Offline</span><span id="stSpeed"></span><span id="stTime"></span><span style="margin-left:auto">Simulation — not connected to AOL</span></div>
   </section>
@@ -207,6 +214,26 @@ function view(name) {
   }
   paintFlag();
 }
+function replyTo(text, room) {
+  const s = text.toLowerCase();
+  const who = chatters[Math.floor(Math.random()*chatters.length)];
+  const hits = [];
+  if (/\basl\b|\bage\b/.test(s)) hits.push([who, "no asl. this isn't 1996. wait. it is."]);
+  if (/ohio|where|from\b/.test(s)) hits.push(["SoccerMom22", "kitchen phone, virginia. someone will pick up if you stay on."]);
+  if (/aol|steve|case|keyword/.test(s)) hits.push(["CaseWatcher", "he isn't in this room. the service still wrote your keyword down."]);
+  if (/mail|inbox/.test(s)) hits.push(["ModemQueen", "flag's up. it has been up since you signed on. it likes being up."]);
+  if (/modem|56|handshake|dial|busy/.test(s)) hits.push(["ModemQueen", "mine settled at 28800 and then sighed. yours too?"]);
+  if (/help|how|what/.test(s)) hits.push(["NetNinja", "keyword box, top right. or just stay. the room counts either way."]);
+  if (/bye|gtg|later|brb/.test(s)) hits.push([who, "wb when the line lets you. it doesn't always."]);
+  if (/lol|haha|lmao/.test(s)) hits.push(["BuffyFan", "lol. the laugh got logged with the rest of it."]);
+  if (/love|hi |hey|hello|wb/.test(s)) hits.push([who, "wb " + state.name + ". we've had this lobby open since the cd in the mail."]);
+  if (/game|trivia|slingo/.test(s)) hits.push(["XFilesRule", "trivia's in games. the questions know you already took them."]);
+  if (/news|hurricane|senate/.test(s)) hits.push(["CoolDude95", "keyword news. same three stories. they rotate when you blink."]);
+  if (!hits.length) hits.push([who, "\"" + text.slice(0, 42) + "\" — yeah. " + (room === "X-Files" ? "that's what they want you to think." : "mom's on the other line but go on.")]);
+  if (room === "Romance") hits.push(["ModemQueen", "the romance room is just the lobby with the lights lower."]);
+  if (state.seconds > 40) hits.push(["AOLHost", state.name + " has been on " + state.seconds + " seconds. the old plan would have noticed."]);
+  return hits.slice(0, 2);
+}
 function openRoom(name) {
   clearInterval(state.chat);
   $("main").innerHTML = `<h1>Chat — ${name}</h1><div id="chat"><div id="log"></div><div class="row" style="padding:8px 0"><input id="cin" placeholder="Talk in ${name}"><button class="btn" id="csend">Send</button></div></div>`;
@@ -214,8 +241,12 @@ function openRoom(name) {
   const add = (cls, text) => { const d = document.createElement("div"); d.className = cls; d.textContent = text; log.appendChild(d); log.scrollTop = log.scrollHeight; };
   add("sys", "You have entered " + name + ".");
   door();
-  state.chat = setInterval(() => add("", chatters[state.seconds % 5] + ":  " + lines[state.seconds % 7]), 3200);
-  const send = () => { const t = $("cin").value.trim(); if (!t) return; $("cin").value = ""; add("me", state.name + ":  " + t); };
+  state.chat = setInterval(() => add("", chatters[state.seconds % 5] + ":  " + lines[state.seconds % 7]), 7000);
+  const send = () => {
+    const t = $("cin").value.trim(); if (!t) return; $("cin").value = "";
+    add("me", state.name + ":  " + t);
+    replyTo(t, name).forEach((pair, i) => setTimeout(() => add("", pair[0] + ":  " + pair[1]), 700 + i * 900));
+  };
   $("csend").onclick = send;
   $("cin").onkeydown = (e) => { if (e.key === "Enter") send(); };
 }
@@ -347,7 +378,7 @@ function playHandshake(number, busy) {
   try {
     const c = ctx(); const t0 = c.currentTime + 0.05;
     const dtmf = {1:[697,1209],2:[697,1336],3:[697,1477],4:[770,1209],5:[770,1336],6:[770,1477],7:[852,1209],8:[852,1336],9:[852,1477],0:[941,1336]};
-    tone(350, t0, 0.7, "sine", 0.05); tone(440, t0, 0.7, "sine", 0.04);
+    tone(350, t0, 0.7, "sine", 0.04); tone(440, t0, 0.7, "sine", 0.035); tone(196, t0, 2.4, "sine", 0.012);
     let at = t0 + 0.85;
     String(number).split("").forEach(d => { if (d===",") { at += 0.35; return; } const p = dtmf[d]; if (!p) return; tone(p[0], at, 0.09, "sine", 0.06); tone(p[1], at, 0.09, "sine", 0.06); at += 0.16; });
     if (busy) { for (let i=0;i<6;i++) { tone(480, at+i*0.5, 0.22, "sine", 0.07); tone(620, at+i*0.5, 0.22, "sine", 0.06); } return; }
@@ -358,13 +389,13 @@ function playHandshake(number, busy) {
   } catch (e) {}
 }
 function stopAudio() { try { if (state.audio) { state.audio.close(); state.audio = null; } } catch (e) {} }
-function chime() { try { const t = ctx().currentTime; tone(880, t, 0.09, "sine", 0.06); tone(1175, t+0.1, 0.16, "sine", 0.05); } catch (e) {} }
-function door() { try { const t = ctx().currentTime; noise(t, 0.16, 0.05, 400); tone(220, t, 0.12, "triangle", 0.04); tone(494, t+0.14, 0.12, "sine", 0.035); } catch (e) {} }
+function chime() { try { const t = ctx().currentTime; tone(880, t, 0.09, "sine", 0.05); tone(932, t, 0.09, "sine", 0.02); tone(1175, t+0.12, 0.2, "sine", 0.045); } catch (e) {} }
+function door() { try { const t = ctx().currentTime; noise(t, 0.28, 0.06, 280); tone(146, t, 0.2, "sawtooth", 0.03); tone(311, t+0.16, 0.14, "sine", 0.03); } catch (e) {} }
 function hangup() { try { const t = ctx().currentTime; noise(t, 0.12, 0.12, 800); tone(180, t+0.06, 0.1, "sawtooth", 0.03); } catch (e) {} }
 function speak(text) {
   try {
     if (!$("speaker").checked || !window.speechSynthesis) return;
-    const u = new SpeechSynthesisUtterance(text); u.rate = 0.92; u.pitch = 0.8;
+    const u = new SpeechSynthesisUtterance(text); u.rate = 0.84; u.pitch = 0.62;
     const v = speechSynthesis.getVoices().find(x => /male|david|daniel|alex/i.test(x.name));
     if (v) u.voice = v; speechSynthesis.speak(u);
   } catch (e) {}
