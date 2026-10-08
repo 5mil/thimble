@@ -3,403 +3,183 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>America Online</title>
+<title>America Online — People Connection</title>
 <style>
-  :root { --navy:#001a66; --ink:#142033; --lav:#c9c8ef; --gold:#f0c419; --win:#d4d0c8; }
+  :root { --navy:#000080; --win:#d4d0c8; --lav:#c9c8ef; }
   * { box-sizing:border-box; }
   html, body { margin:0; height:100%; }
-  body { font-family:Tahoma, "MS Sans Serif", sans-serif; color:var(--ink); background:#008080; }
-  #stage { min-height:100%; display:flex; align-items:center; justify-content:center; padding:22px 12px 36px; background:#008080; }
-  #app { width:min(1080px, 100%); height:min(760px, calc(100vh - 24px)); background:var(--win); border:2px solid; border-color:#fff #404040 #404040 #fff; display:flex; flex-direction:column; box-shadow:2px 2px 0 #000; }
-  .tool { width:28px; height:26px; display:inline-flex; align-items:center; justify-content:center; border:1px solid transparent; }
-  .buddy { width:168px; border-left:1px solid #9bb; background:#f4f7fb; padding:8px; font-size:12px; }
-  .buddy div { padding:3px 0; }
-  button, input, select, textarea { font-family:inherit; font-size:14px; }
+  body { font-family:Tahoma, "MS Sans Serif", sans-serif; background:#008080; color:#142033; }
+  button, input, select { font-family:inherit; font-size:14px; }
   button { cursor:pointer; }
   .hidden { display:none !important; }
-  #stage { min-height:100%; display:flex; align-items:center; justify-content:center; padding:18px; }
-  .card { width:min(760px, 100%); background:#f7f5ef; border:3px solid #16356b; box-shadow:0 18px 40px rgba(0,0,0,.28); }
-  .brand { display:flex; align-items:center; justify-content:center; gap:14px; padding:22px 16px 8px; }
-  .am { letter-spacing:4px; font-size:15px; font-weight:700; color:#16356b; }
-  .on { font-family:Georgia, "Palatino Linotype", serif; font-style:italic; font-size:42px; color:#16356b; line-height:.9; }
-  .form { padding:8px 48px 18px; }
-  label { display:block; margin:10px 0 4px; font-size:13px; }
-  input, select, textarea { width:100%; border:1px solid #7d8794; padding:6px 8px; background:#fff; }
-  .row { display:flex; justify-content:flex-end; gap:8px; padding:0 48px 18px; }
-  .btn { min-width:96px; height:30px; background:var(--win); border:2px solid; border-color:#fff #404040 #404040 #fff; }
+  #stage { min-height:100%; display:flex; align-items:center; justify-content:center; padding:16px; }
+  .card, #app { width:min(980px, 100%); background:#f7f5ef; border:3px solid #16356b; box-shadow:2px 2px 0 #000; }
+  .brand { display:flex; align-items:center; justify-content:center; gap:12px; padding:18px 12px 6px; }
+  .am { letter-spacing:3px; font-size:13px; font-weight:700; color:#16356b; }
+  .on { font-family:Georgia, serif; font-style:italic; font-size:36px; color:#16356b; line-height:.9; }
+  .form { padding:8px 36px 16px; }
+  label { display:block; margin:8px 0 4px; font-size:13px; }
+  input, select { width:100%; border:1px solid #7d8794; padding:6px 8px; background:#fff; }
+  .row { display:flex; justify-content:flex-end; gap:8px; padding:0 36px 16px; }
+  .btn { min-width:88px; height:28px; background:var(--win); border:2px solid; border-color:#fff #404040 #404040 #fff; }
   .btn.primary { font-weight:700; }
   .fine { text-align:center; font-size:11px; color:#555; padding-bottom:12px; }
-  .check { display:flex; align-items:center; gap:8px; font-size:13px; }
-  .check input { width:auto; }
-  .panels { display:flex; margin:8px 36px 0; }
-  .panel { flex:1; height:110px; background:var(--lav); border:3px solid #16356b; display:flex; align-items:center; justify-content:center; }
-  .panel + .panel { border-left:none; }
-  .status { text-align:center; font-size:18px; min-height:28px; margin:12px 0 0; }
-  .steps { text-align:center; font-size:13px; color:#333; min-height:36px; padding:0 24px 8px; }
-  .barline { height:3px; background:#222; margin:8px 80px 0; }
-  #app { width:min(1040px, 100%); height:min(720px, calc(100vh - 28px)); background:var(--win); border:2px solid; border-color:#fff #404040 #404040 #fff; display:flex; flex-direction:column; box-shadow:0 16px 36px rgba(0,0,0,.3); }
-  #title { height:26px; background:linear-gradient(90deg,#000080,#1084d0); color:#fff; display:flex; align-items:center; padding:0 8px; font-weight:700; font-size:13px; }
-  #menu, #tools { display:flex; gap:2px; align-items:center; padding:3px 6px; background:var(--win); font-size:13px; }
-  #menu span, .tool { padding:2px 8px; }
-  #menu span:hover, .tool:hover { background:#000080; color:#fff; cursor:pointer; }
-  .kw { margin-left:auto; display:flex; gap:4px; align-items:center; }
-  .kw input { width:140px; height:24px; }
+  #app { background:var(--win); display:flex; flex-direction:column; height:min(720px, calc(100vh - 24px)); }
+  #title { height:24px; background:linear-gradient(90deg,#000080,#1084d0); color:#fff; display:flex; align-items:center; padding:0 8px; font-weight:700; font-size:13px; }
+  #menu { display:flex; gap:10px; padding:4px 8px; background:var(--win); font-size:13px; }
+  #menu span { cursor:pointer; padding:2px 6px; }
+  #menu span:hover { background:#000080; color:#fff; }
   #body { flex:1; display:flex; min-height:0; background:#fff; }
-  #side { width:190px; background:linear-gradient(#0a3d91,#082e78); color:#fff; padding:12px; }
-  #side button, .mailflag { display:block; width:100%; margin:8px 0; background:#1d4eae; color:#fff; border:1px solid #9cf; padding:8px; font-weight:700; }
-  .mailflag { display:flex; gap:8px; align-items:center; text-align:left; cursor:pointer; }
-  #main { flex:1; padding:14px 16px; overflow:auto; }
-  h1 { margin:0 0 6px; color:#003399; font-size:22px; }
-  .lead { color:#444; font-size:13px; }
-  .story, .carditem { border:1px solid #d5d5d5; padding:8px; margin:8px 0; background:#fafafa; cursor:pointer; }
-  .story b, .carditem b { color:#003399; }
-  table { width:100%; border-collapse:collapse; font-size:13px; }
-  th { background:#003399; color:#fff; text-align:left; padding:4px 6px; font-weight:normal; }
-  td { padding:4px 6px; border-bottom:1px solid #e5e5e5; }
-  tr.unread td { font-weight:700; }
-  #chat { display:flex; flex-direction:column; height:360px; }
-  #log { flex:1; overflow:auto; border:1px solid #888; padding:6px; background:#fff; font-size:13px; }
+  #rooms, #members { width:180px; background:#f4f7fb; padding:8px; overflow:auto; font-size:13px; }
+  #rooms { border-right:1px solid #c5c5c5; }
+  #members { border-left:1px solid #c5c5c5; }
+  .room, .who { padding:6px; cursor:pointer; border:1px solid transparent; }
+  .room.on, .room:hover { background:#000080; color:#fff; }
+  #center { flex:1; display:flex; flex-direction:column; min-width:0; }
+  #log { flex:1; overflow:auto; padding:8px; font-size:13px; font-family:Verdana, sans-serif; background:#fff; }
   .me { color:#003399; }
   .sys { color:#666; font-style:italic; }
-  #status { height:24px; background:var(--win); border-top:1px solid #fff; display:flex; gap:8px; align-items:center; padding:0 8px; font-size:12px; }
-  #modal { position:fixed; inset:0; background:rgba(0,0,0,.28); display:flex; align-items:center; justify-content:center; }
-  #modal .box { width:340px; background:var(--win); border:2px solid; border-color:#fff #404040 #404040 #fff; }
-  #modal .mt { background:linear-gradient(90deg,#000080,#1084d0); color:#fff; font-weight:700; padding:4px 8px; }
-  #modal .mb { padding:16px; text-align:center; background:#f4f1e8; }
-  #modal .big { font-size:22px; color:#003399; font-weight:700; margin:6px 0; }
-  #bye { position:fixed; inset:0; background:#000; color:#fff; display:flex; align-items:center; justify-content:center; flex-direction:column; }
-  .runner { width:54px; height:54px; }
+  .host { color:#6a2a2a; }
+  #composer { display:flex; gap:6px; padding:8px; background:var(--win); border-top:1px solid #fff; }
+  #composer input { flex:1; }
+  #status { height:22px; background:var(--win); border-top:1px solid #808080; font-size:11px; display:flex; align-items:center; padding:0 8px; gap:10px; }
 </style>
 </head>
 <body>
 <div id="stage">
   <section class="card" id="signon">
-    <div class="brand" id="signBrand"></div>
+    <div class="brand">
+      <svg width="64" height="54" viewBox="0 0 74 62" aria-hidden="true"><polygon points="37,2 72,60 2,60" fill="#16356b"/><circle cx="37" cy="36" r="14" fill="#f7f4ea"/><g transform="translate(20,22)" fill="#f0c419" stroke="#16356b" stroke-width="1.2"><circle cx="10" cy="5" r="3.1"/><path d="M8 9 L14 12 L20 9 L16 16 L22 22 L14 18 L10 26 L9 17 L2 18 Z"/></g></svg>
+      <div><div class="am">AMERICA</div><div class="on">Online</div></div>
+    </div>
     <div class="form">
       <label>Select Screen Name</label>
-      <input id="screenName" value="SteveCaseFan" maxlength="16" autocomplete="off">
-      <label>Enter Password</label>
-      <input id="password" type="password" value="hunter2" autocomplete="off">
-      <label>Select Location</label>
-      <select id="location">
-        <option value="home">Home — (703) 555-0142</option>
-        <option value="office">Office — dial 9, (212) 555-0199</option>
-        <option value="hotel">Hotel — (312) 555-0177</option>
-        <option value="busy">Busy exchange — (202) 555-0100</option>
+      <input id="screenName" maxlength="16" value="SteveCaseFan" autocomplete="off">
+      <label>Enter a room</label>
+      <select id="roomPick">
+        <option>Lobby</option>
+        <option>Thirtysomething</option>
+        <option>Computer Help</option>
+        <option>Sports Bar</option>
+        <option>New Member Lounge</option>
       </select>
-      <label class="check"><input type="checkbox" id="speaker" checked> Modem speaker on</label>
+      <p class="fine" style="text-align:left">People Connection. Messages go to everyone in the same room, through a public relay. Do not type a real password.</p>
     </div>
-    <div class="row">
-      <button class="btn" id="setupBtn">Setup</button>
-      <button class="btn primary" id="signOnBtn">Sign On</button>
-    </div>
-    <div class="fine">America Online 5.0 · the whole sign-on, in the browser · nothing is dialed</div>
-  </section>
-
-  <section class="card hidden" id="dial">
-    <div class="brand" id="dialBrand"></div>
-    <div class="panels">
-      <div class="panel" id="p1"></div>
-      <div class="panel" id="p2"></div>
-      <div class="panel" id="p3"></div>
-    </div>
-    <div class="status" id="dialStatus">Dialing...</div>
-    <div class="barline"></div>
-    <div class="steps" id="dialSteps"></div>
-    <div class="row"><button class="btn" id="cancelDial">Cancel</button></div>
+    <div class="row"><button class="btn primary" id="enter">Sign On</button></div>
   </section>
 
   <section id="app" class="hidden">
-    <div id="title">America Online</div>
-    <div id="menu">
-      <span data-view="welcome">Go To</span>
-      <span data-view="mail">Mail</span>
-      <span data-view="people">People</span>
-      <span data-view="channels">Channels</span>
-      <span id="signOff">Sign Off</span>
-    </div>
-    <div id="tools">
-      <span class="tool" title="Read Mail" data-view="mail">📬</span>
-      <span class="tool" title="Write" data-view="compose">✉️</span>
-      <span class="tool" title="People" data-view="people">👥</span>
-      <span class="tool" title="Favorites" data-view="channels">⭐</span>
-      <span class="tool" title="Weather" data-view="weather">⛅</span>
-      <span class="tool" title="Quotes" data-view="stocks">📈</span>
-      <span class="tool" title="Pictures" data-kw="pictures">📷</span>
-      <form class="kw" id="kwform"><span>Keyword</span><input id="keyword" placeholder="mail, chat, news"><button class="btn" type="submit">Go</button></form>
-    </div>
+    <div id="title">America Online — People Connection</div>
+    <div id="menu"><span id="signOff">Sign Off</span><span id="whoami"></span></div>
     <div id="body">
-      <aside id="side">
-        <div id="sideLogo"></div>
-        <button type="button" data-view="channels">Channels</button>
-        <button type="button" data-view="news">What's New</button>
-        <div class="mailflag" data-view="mail"><span id="flag">📫</span><div><b id="flagText">You Have Mail</b><div id="flagCount" style="font-size:11px"></div></div></div>
-        <div class="mailflag" data-view="people"><span>👥</span><div><b>People</b><div style="font-size:11px">Lobby</div></div></div>
-      </aside>
-      <div id="main"></div>
-      <aside class="buddy" id="buddy"><b>Buddies Online</b><div>● CoolDude95</div><div>● SoccerMom22</div><div>● BuffyFan</div><div>● ModemQueen</div><div style="color:#666;margin-top:8px">Keyword: BuddyView</div></aside>
+      <aside id="rooms"></aside>
+      <div id="center">
+        <div id="log"></div>
+        <form id="composer"><input id="cin" placeholder="Talk in the room" autocomplete="off"><button class="btn primary" type="submit">Send</button></form>
+      </div>
+      <aside id="members"><b>In this room</b><div id="whoList"></div></aside>
     </div>
-    <div id="status"><span id="stOnline">Offline</span><span id="stSpeed"></span><span id="stTime"></span><span style="margin-left:auto">Simulation — not connected to AOL</span></div>
+    <div id="status"><span id="stRoom">Offline</span><span id="stLink">connecting…</span><span style="margin-left:auto">Live room · not AOL</span></div>
   </section>
 </div>
-<div id="modal" class="hidden"><div class="box"><div class="mt">America Online</div><div class="mb" id="modalBody"></div><div class="row" id="modalBtns"></div></div></div>
-<div id="bye" class="hidden"><div id="byeLogo"></div><h1>Goodbye</h1><div>from America Online</div></div>
 <script>
-const LOGO = `<svg width="74" height="62" viewBox="0 0 74 62" aria-hidden="true"><polygon points="37,2 72,60 2,60" fill="#16356b"/><circle cx="37" cy="36" r="14" fill="#f7f4ea"/><g transform="translate(20,22)" fill="#f0c419" stroke="#16356b" stroke-width="1.2"><circle cx="10" cy="5" r="3.1"/><path d="M8 9 L14 12 L20 9 L16 16 L22 22 L14 18 L10 26 L9 17 L2 18 Z"/></g></svg>`;
-const RUNNER = `<svg class="runner" viewBox="0 0 64 64"><circle cx="28" cy="14" r="7" fill="#f0c419" stroke="#16356b" stroke-width="2"/><path d="M20 24 L38 30 L50 22 L42 36 L54 48 L36 40 L30 58 L28 40 L12 44 Z" fill="#f0c419" stroke="#16356b" stroke-width="2"/></svg>`;
-const brand = LOGO + `<div><div class="am">AMERICA</div><div class="on">Online</div></div>`;
-document.getElementById("signBrand").innerHTML = brand;
-document.getElementById("dialBrand").innerHTML = brand;
-document.getElementById("sideLogo").innerHTML = LOGO + `<div class="on" style="font-size:22px;text-align:center">Online</div>`;
-document.getElementById("byeLogo").innerHTML = LOGO;
-
-const channels = {
-  news: ["Today's News", "Senate debate runs long. Dow holds above 10,600. Hurricane watch on the Outer Banks."],
-  sports: ["Sports", "Yankees take Game 2. NFL week is on the Grandstand. Do not spoil the West Coast feed."],
-  entertainment: ["Entertainment", "You've Got Mail is still renting. Buffy boards are 400 posts deep."],
-  finance: ["Personal Finance", "AOL 92 1/4, up 3. Delayed fractions, not a broker."],
-  travel: ["Travel", "Fall foliage folders. BOS to MCO $159, if the modem finishes the page."],
-  computing: ["Computing", "Windows 98 tips. Y2K checklist. Scan a file before you run it."],
-  kids: ["Kids Only", "Homework help from 4 to 6. Book of the week: Holes."],
-  games: ["Games", "Slingo night. Trivia below the fold. Neverwinter is full."],
-  pictures: ["You've Got Pictures", "Roll 2148, beach, two frames backlit. Roll 2201, birthday candles, slightly blurry."],
-  weather: ["Weather", "Vienna, VA. 72 and fair. Tonight 58. The Banks are under a watch."],
-  stocks: ["Quotes", "AOL 92 1/4 +3 · YHOO 84 1/2 +1 1/8 · AMZN 80 3/8 -2 · MSFT 91 1/16 +5/8"],
-  help: ["Member Services", "Keywords: mail, chat, news, sports, games, weather, stocks, kids, pictures. Password stays in this tab."]
-};
-const rooms = ["Lobby", "Romance", "Thirtysomething", "X-Files", "Sports Bar", "Computer Help"];
-const chatters = ["CoolDude95","SoccerMom22","BuffyFan","XFilesRule","ModemQueen"];
-const lines = ["brb phone","lol","anyone from ohio?","the handshake took forever","wb","gtg dinner","56k tonight, barely"];
-let mail = [
-  {from:"AOLNewsAlert", subject:"You've Got Mail — and a news brief", body:"Welcome back. Senate debate ran long. Keyword: NEWS", unread:true},
-  {from:"CoolDude95", subject:"you on tonight?", body:"meet in the lobby after you sign on.", unread:true},
-  {from:"MemberServices", subject:"Your plan", body:"This page does not bill you and does not dial a line.", unread:true}
-];
-let state = { name:"SteveCaseFan", online:false, seconds:0, timer:null, chat:null, cancelled:false, audio:null };
+const ROOMS = ["Lobby", "Thirtysomething", "Computer Help", "Sports Bar", "New Member Lounge"];
+const me = { name: "", id: Math.random().toString(36).slice(2, 10), room: "Lobby" };
+const seen = new Set();
+const present = new Map();
+let source = null;
 
 const $ = (id) => document.getElementById(id);
-function show(id) {
-  ["signon","dial","app"].forEach(s => $(s).classList.toggle("hidden", s !== id));
+function topic(room) { return "thimble-aol-" + room.toLowerCase().replace(/[^a-z0-9]+/g, "-"); }
+function add(cls, text) {
+  const d = document.createElement("div");
+  d.className = cls;
+  d.textContent = text;
+  $("log").appendChild(d);
+  $("log").scrollTop = $("log").scrollHeight;
 }
-function unread() { return mail.filter(m => m.unread).length; }
-function paintFlag() {
-  const n = unread();
-  $("flag").textContent = n ? "📫" : "📪";
-  $("flagText").textContent = n ? "You Have Mail" : "No New Mail";
-  $("flagCount").textContent = n + " unread";
+function paintRooms() {
+  $("rooms").innerHTML = "<b>Rooms</b>" + ROOMS.map(r => `<div class="room${r===me.room?" on":""}" data-room="${r}">${r}</div>`).join("");
 }
-function view(name) {
-  const main = $("main");
-  if (name === "welcome") {
-    main.innerHTML = `<h1>Welcome, ${state.name}</h1><p class="lead">AOL Today. Channels on the left. Keyword box up top. People Connection if you came to talk.</p>
-      <div class="story" data-view="news"><b>TOP NEWS STORY.</b> Senate debate runs long. Hurricane watch on the Banks.</div>
-      <div class="story" data-view="pictures"><b>YOU'VE GOT PICTURES.</b> Two rolls are waiting from the Kodak drop.</div>
-      <div class="story" data-view="help"><b>NEED TO KNOW.</b> This is a recreation. Your password never leaves the tab.</div>`;
-  } else if (name === "channels") {
-    main.innerHTML = `<h1>Channels</h1><p class="lead">The main menu, as buttons.</p>` + Object.keys(channels).map(k => `<div class="carditem" data-view="${k}"><b>${channels[k][0]}</b><div>${channels[k][1]}</div></div>`).join("");
-  } else if (channels[name]) {
-    main.innerHTML = `<h1>${channels[name][0]}</h1><p>${channels[name][1]}</p>`;
-    if (name === "pictures") speak("You've got pictures");
-  } else if (name === "mail") {
-    main.innerHTML = `<h1>Mailbox — ${state.name}</h1><table><tr><th></th><th>From</th><th>Subject</th></tr>` +
-      mail.map((m,i) => `<tr class="${m.unread?"unread":""}" data-mail="${i}"><td>${m.unread?"✉":""}</td><td>${m.from}</td><td>${m.subject}</td></tr>`).join("") + `</table>`;
-  } else if (name === "compose") {
-    main.innerHTML = `<h1>Write Mail</h1><label>To</label><input id="to" value="CoolDude95"><label>Subject</label><input id="sub"><label>Message</label><textarea id="body" style="height:120px"></textarea><div class="row" style="padding:8px 0"><button class="btn primary" id="sendMail">Send Now</button></div>`;
-    $("sendMail").onclick = () => {
-      mail.unshift({from:$("to").value||"Friend", subject:"Re: "+($("sub").value||"(no subject)"), body:"got it.", unread:true});
-      chime(); speak("You've got mail"); paintFlag(); view("mail");
-    };
-  } else if (name === "people") {
-    main.innerHTML = `<h1>People Connection</h1><p class="lead">Pick a room. The lobby never really emptied.</p>` + rooms.map(r => `<div class="carditem" data-room="${r}"><b>${r}</b><div>Members are already talking.</div></div>`).join("");
-  }
-  paintFlag();
+function paintWho() {
+  const now = Date.now();
+  let html = "";
+  present.forEach((t, name) => { if (now - t < 120000) html += `<div class="who">● ${name}</div>`; });
+  $("whoList").innerHTML = html || "<div class=\"sys\">just you, for a moment</div>";
 }
-function replyTo(text, room) {
-  const s = text.toLowerCase();
-  const who = chatters[Math.floor(Math.random()*chatters.length)];
-  const hits = [];
-  if (/\basl\b|\bage\b/.test(s)) hits.push([who, "no asl. this isn't 1996. wait. it is."]);
-  if (/ohio|where|from\b/.test(s)) hits.push(["SoccerMom22", "kitchen phone, virginia. someone will pick up if you stay on."]);
-  if (/aol|steve|case|keyword/.test(s)) hits.push(["CaseWatcher", "he isn't in this room. the service still wrote your keyword down."]);
-  if (/mail|inbox/.test(s)) hits.push(["ModemQueen", "flag's up. it has been up since you signed on. it likes being up."]);
-  if (/modem|56|handshake|dial|busy/.test(s)) hits.push(["ModemQueen", "mine settled at 28800 and then sighed. yours too?"]);
-  if (/help|how|what/.test(s)) hits.push(["NetNinja", "keyword box, top right. or just stay. the room counts either way."]);
-  if (/bye|gtg|later|brb/.test(s)) hits.push([who, "wb when the line lets you. it doesn't always."]);
-  if (/lol|haha|lmao/.test(s)) hits.push(["BuffyFan", "lol. the laugh got logged with the rest of it."]);
-  if (/love|hi |hey|hello|wb/.test(s)) hits.push([who, "wb " + state.name + ". we've had this lobby open since the cd in the mail."]);
-  if (/game|trivia|slingo/.test(s)) hits.push(["XFilesRule", "trivia's in games. the questions know you already took them."]);
-  if (/news|hurricane|senate/.test(s)) hits.push(["CoolDude95", "keyword news. same three stories. they rotate when you blink."]);
-  if (!hits.length) hits.push([who, "\"" + text.slice(0, 42) + "\" — yeah. " + (room === "X-Files" ? "that's what they want you to think." : "mom's on the other line but go on.")]);
-  if (room === "Romance") hits.push(["ModemQueen", "the romance room is just the lobby with the lights lower."]);
-  if (state.seconds > 40) hits.push(["AOLHost", state.name + " has been on " + state.seconds + " seconds. the old plan would have noticed."]);
-  return hits.slice(0, 2);
-}
-function openRoom(name) {
-  clearInterval(state.chat);
-  $("main").innerHTML = `<h1>Chat — ${name}</h1><div id="chat"><div id="log"></div><div class="row" style="padding:8px 0"><input id="cin" placeholder="Talk in ${name}"><button class="btn" id="csend">Send</button></div></div>`;
-  const log = $("log");
-  const add = (cls, text) => { const d = document.createElement("div"); d.className = cls; d.textContent = text; log.appendChild(d); log.scrollTop = log.scrollHeight; };
-  add("sys", "You have entered " + name + ".");
-  door();
-  state.chat = setInterval(() => add("", chatters[state.seconds % 5] + ":  " + lines[state.seconds % 7]), 7000);
-  const send = () => {
-    const t = $("cin").value.trim(); if (!t) return; $("cin").value = "";
-    add("me", state.name + ":  " + t);
-    replyTo(t, name).forEach((pair, i) => setTimeout(() => add("", pair[0] + ":  " + pair[1]), 700 + i * 900));
-  };
-  $("csend").onclick = send;
-  $("cin").onkeydown = (e) => { if (e.key === "Enter") send(); };
-}
-function modal(html, buttons) {
-  $("modalBody").innerHTML = html;
-  $("modalBtns").innerHTML = "";
-  buttons.forEach(b => {
-    const e = document.createElement("button");
-    e.className = "btn" + (b.primary ? " primary" : "");
-    e.textContent = b.label;
-    e.onclick = () => { $("modal").classList.add("hidden"); b.fn && b.fn(); };
-    $("modalBtns").appendChild(e);
+async function publish(payload) {
+  await fetch("https://ntfy.sh/" + topic(me.room), {
+    method: "POST",
+    body: JSON.stringify(payload)
   });
-  $("modal").classList.remove("hidden");
 }
-function numberFor(loc) {
-  if (loc === "office") return "9,12125550199";
-  if (loc === "hotel") return "13125550177";
-  if (loc === "busy") return "12025550100";
-  return "17035550142";
+function handle(raw) {
+  let msg;
+  try { msg = JSON.parse(raw); } catch (e) { return; }
+  if (!msg || !msg.id || seen.has(msg.id)) return;
+  seen.add(msg.id);
+  if (msg.kind === "join") {
+    present.set(msg.name, Date.now());
+    if (msg.id !== me.id) add("sys", msg.name + " has entered the room.");
+  } else if (msg.kind === "leave") {
+    present.delete(msg.name);
+    add("sys", msg.name + " has left the room.");
+  } else if (msg.kind === "chat") {
+    present.set(msg.name, Date.now());
+    add(msg.name === me.name ? "me" : "", msg.name + ":  " + msg.text);
+  } else if (msg.kind === "here") {
+    present.set(msg.name, Date.now());
+  }
+  paintWho();
 }
-function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
-async function startDial() {
+function connect(room) {
+  if (source) { source.close(); source = null; }
+  me.room = room;
+  $("stRoom").textContent = room;
+  $("stLink").textContent = "listening";
+  $("log").innerHTML = "";
+  add("sys", "You have entered " + room + " as " + me.name + ".");
+  add("sys", "Anyone on this page in the same room can answer.");
+  paintRooms();
+  present.set(me.name, Date.now());
+  paintWho();
+  source = new EventSource("https://ntfy.sh/" + topic(room) + "/sse");
+  source.onmessage = (ev) => {
+    try { handle(JSON.parse(ev.data).message); } catch (e) {}
+  };
+  source.onerror = () => { $("stLink").textContent = "reconnecting"; };
+  publish({ kind:"join", name:me.name, id:me.id });
+}
+function enter() {
   const name = $("screenName").value.trim();
-  if (name.length < 3 || name.length > 16 || /\s/.test(name)) { modal("<b>Screen names are 3 to 16 characters, no spaces.</b>", [{label:"OK", primary:true}]); return; }
-  state.name = name; state.cancelled = false;
-  show("dial");
-  const loc = $("location").value;
-  const num = numberFor(loc);
-  const steps = [
-    ["Initializing modem...", "Sportster 56K responds OK."],
-    ["Dialing " + num + "...", "Touch tones for the access number."],
-    ["Ringing...", "Waiting for the other modem."],
-    ["Connecting at 28800 bps...", "Answer tone, then the handshake."],
-    ["Requesting network attention...", "Synchronize characters."],
-    ["Talking to network...", "America Online software identifies itself."],
-    ["Connecting to America Online...", "Contacting the host."],
-    ["Checking password...", "Screen name " + name + ". Password stays in this tab."]
-  ];
-  if ($("speaker").checked) playHandshake(num, loc === "busy");
-  for (let i = 0; i < steps.length; i++) {
-    if (state.cancelled) return;
-    $("dialStatus").textContent = steps[i][0];
-    $("dialSteps").textContent = steps[i][1];
-    ["p1","p2","p3"].forEach((p,n) => { $(p).innerHTML = n === Math.min(2, Math.floor(i/3)) ? RUNNER : ""; });
-    await wait(loc === "busy" && i === 2 ? 1400 : 900);
-    if (loc === "busy" && i === 2) {
-      stopAudio();
-      $("dialStatus").textContent = "Busy.";
-      $("dialSteps").textContent = "The access number is busy. Choose another location.";
-      await wait(800);
-      if (!state.cancelled) show("signon");
-      return;
-    }
-  }
-  if (state.cancelled) return;
-  connected();
+  if (name.length < 3 || name.length > 16 || /\s/.test(name)) { alert("Screen names are 3 to 16 characters, no spaces."); return; }
+  me.name = name;
+  $("signon").classList.add("hidden");
+  $("app").classList.remove("hidden");
+  $("whoami").textContent = name;
+  connect($("roomPick").value);
 }
-function connected() {
-  state.online = true; state.seconds = 0;
-  show("app");
-  $("stOnline").textContent = "Online — " + state.name;
-  $("stSpeed").textContent = "28800 bps";
-  clearInterval(state.timer);
-  state.timer = setInterval(() => { state.seconds++; $("stTime").textContent = "Online " + String(Math.floor(state.seconds/60)).padStart(2,"0") + ":" + String(state.seconds%60).padStart(2,"0"); }, 1000);
-  view("welcome");
-  setTimeout(() => { speak("Welcome"); youveGotMail(); }, 600);
+async function send(text) {
+  const clean = text.replace(/\s+/g, " ").trim().slice(0, 240);
+  if (!clean) return;
+  await publish({ kind:"chat", name:me.name, text:clean, id:Math.random().toString(36).slice(2, 12) });
 }
-function youveGotMail() {
-  chime(); speak("You've got mail");
-  modal(`<div style="font-size:40px">📫</div><div class="big">You've Got Mail!</div><div>${unread()} new mail message${unread()===1?"":"s"}</div>`, [
-    {label:"Read Mail", primary:true, fn:() => view("mail")},
-    {label:"Later"}
-  ]);
-}
-function signOff() {
-  state.online = false; clearInterval(state.timer); clearInterval(state.chat);
-  hangup(); speak("Goodbye");
-  $("bye").classList.remove("hidden");
-  setTimeout(() => { $("bye").classList.add("hidden"); show("signon"); }, 1800);
-}
-$("signOnBtn").onclick = startDial;
-$("password").onkeydown = (e) => { if (e.key === "Enter") startDial(); };
-$("cancelDial").onclick = () => { state.cancelled = true; stopAudio(); show("signon"); };
-$("setupBtn").onclick = () => modal("<b>AOL Setup</b><br><br>Modem: Sportster 56K, simulated.<br>No COM port. No CD in the mail.", [{label:"OK", primary:true}]);
-$("signOff").onclick = signOff;
-$("kwform").onsubmit = (e) => {
-  e.preventDefault();
-  const k = $("keyword").value.trim().toLowerCase();
-  if (k === "mail") return view("mail");
-  if (k === "chat" || k === "people") return view("people");
-  if (k === "compose" || k === "write") return view("compose");
-  if (channels[k]) return view(k);
-  modal("No keyword \"" + k + "\". Try mail, chat, news, sports, games.", [{label:"OK", primary:true}]);
+$("enter").onclick = enter;
+$("screenName").onkeydown = (e) => { if (e.key === "Enter") enter(); };
+$("composer").onsubmit = (e) => { e.preventDefault(); const t = $("cin").value; $("cin").value = ""; send(t); };
+$("rooms").onclick = (e) => {
+  const room = e.target.getAttribute("data-room");
+  if (!room || room === me.room) return;
+  publish({ kind:"leave", name:me.name, id:Math.random().toString(36).slice(2) });
+  connect(room);
 };
-document.body.addEventListener("click", (e) => {
-  const t = e.target.closest("[data-view],[data-mail],[data-room]");
-  if (!t || !state.online) return;
-  if (t.dataset.view) view(t.dataset.view);
-  if (t.dataset.room) openRoom(t.dataset.room);
-  if (t.dataset.mail != null) {
-    const m = mail[Number(t.dataset.mail)];
-    m.unread = false; paintFlag();
-    modal(`<b>${m.subject}</b><br><br>${m.body}<div style="margin-top:8px;color:#555">From ${m.from}</div>`, [{label:"OK", primary:true}]);
-  }
-});
-
-function ctx() { if (!state.audio) state.audio = new (window.AudioContext||window.webkitAudioContext)(); if (state.audio.state==="suspended") state.audio.resume(); return state.audio; }
-function tone(freq, t, dur, type, gain) {
-  const c = ctx(); const o = c.createOscillator(); const g = c.createGain();
-  o.type = type || "sine"; o.frequency.value = freq;
-  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain||0.05, t+0.02);
-  g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
-  o.connect(g); g.connect(c.destination); o.start(t); o.stop(t+dur+0.02);
-}
-function noise(t, dur, gain, freq) {
-  const c = ctx(); const n = c.createBuffer(1, Math.max(1, c.sampleRate*dur), c.sampleRate); const d = n.getChannelData(0);
-  for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1;
-  const s = c.createBufferSource(); s.buffer = n; const f = c.createBiquadFilter();
-  f.type = "bandpass"; f.frequency.value = freq||1800; f.Q.value = 0.6; const g = c.createGain(); g.gain.value = gain||0.08;
-  s.connect(f); f.connect(g); g.connect(c.destination); s.start(t); s.stop(t+dur);
-}
-function sweep(t, from, to, dur) {
-  const c = ctx(); const o = c.createOscillator(); const g = c.createGain();
-  o.type = "sawtooth"; o.frequency.setValueAtTime(from, t); o.frequency.exponentialRampToValueAtTime(to, t+dur);
-  g.gain.value = 0.03; o.connect(g); g.connect(c.destination); o.start(t); o.stop(t+dur);
-}
-function playHandshake(number, busy) {
-  try {
-    const c = ctx(); const t0 = c.currentTime + 0.05;
-    const dtmf = {1:[697,1209],2:[697,1336],3:[697,1477],4:[770,1209],5:[770,1336],6:[770,1477],7:[852,1209],8:[852,1336],9:[852,1477],0:[941,1336]};
-    tone(350, t0, 0.7, "sine", 0.04); tone(440, t0, 0.7, "sine", 0.035); tone(196, t0, 2.4, "sine", 0.012);
-    let at = t0 + 0.85;
-    String(number).split("").forEach(d => { if (d===",") { at += 0.35; return; } const p = dtmf[d]; if (!p) return; tone(p[0], at, 0.09, "sine", 0.06); tone(p[1], at, 0.09, "sine", 0.06); at += 0.16; });
-    if (busy) { for (let i=0;i<6;i++) { tone(480, at+i*0.5, 0.22, "sine", 0.07); tone(620, at+i*0.5, 0.22, "sine", 0.06); } return; }
-    tone(440, at, 1.1, "sine", 0.045); tone(480, at, 1.1, "sine", 0.04); at += 1.35;
-    const o = c.createOscillator(); const g = c.createGain(); o.frequency.value = 2100; o.connect(g); g.connect(c.destination);
-    g.gain.setValueAtTime(0.07, at); g.gain.setValueAtTime(-0.07, at+0.45); g.gain.setValueAtTime(0.07, at+0.9); o.start(at); o.stop(at+1.15); at += 1.2;
-    noise(at, 0.35, 0.14, 1200); sweep(at+0.15, 800, 2400, 0.4); noise(at+0.55, 0.4, 0.12, 2200); sweep(at+0.75, 3000, 600, 0.4); tone(1800, at+1.3, 0.25, "square", 0.03);
-  } catch (e) {}
-}
-function stopAudio() { try { if (state.audio) { state.audio.close(); state.audio = null; } } catch (e) {} }
-function chime() { try { const t = ctx().currentTime; tone(880, t, 0.09, "sine", 0.05); tone(932, t, 0.09, "sine", 0.02); tone(1175, t+0.12, 0.2, "sine", 0.045); } catch (e) {} }
-function door() { try { const t = ctx().currentTime; noise(t, 0.28, 0.06, 280); tone(146, t, 0.2, "sawtooth", 0.03); tone(311, t+0.16, 0.14, "sine", 0.03); } catch (e) {} }
-function hangup() { try { const t = ctx().currentTime; noise(t, 0.12, 0.12, 800); tone(180, t+0.06, 0.1, "sawtooth", 0.03); } catch (e) {} }
-function speak(text) {
-  try {
-    if (!$("speaker").checked || !window.speechSynthesis) return;
-    const u = new SpeechSynthesisUtterance(text); u.rate = 0.84; u.pitch = 0.62;
-    const v = speechSynthesis.getVoices().find(x => /male|david|daniel|alex/i.test(x.name));
-    if (v) u.voice = v; speechSynthesis.speak(u);
-  } catch (e) {}
-}
+$("signOff").onclick = () => {
+  publish({ kind:"leave", name:me.name, id:Math.random().toString(36).slice(2) });
+  if (source) source.close();
+  location.reload();
+};
+paintRooms();
+setInterval(() => { if (me.name) publish({ kind:"here", name:me.name, id:Math.random().toString(36).slice(2) }); }, 25000);
 </script>
 </body>
 </html>
