@@ -30,3 +30,16 @@ zig build-exe src/client.zig -target x86_64-windows-gnu -OReleaseSafe -lwinhttp 
 ```
 
 The page and the program use the same accounts on that host.
+
+## Mining pool
+
+The host also listens on port 3333. A worker logs in with a name, a thread count, and a device. The pool sends a job and counts shares. `GET /api/pool` lists who is connected.
+
+The miner detects the CPU count. Pass flags when the automatic guess is wrong:
+
+```
+zig build-exe src/miner.zig -OReleaseSafe -femit-bin=aol-miner
+./aol-miner --host 127.0.0.1 --worker SteveCaseFan.rig1 --threads 4 --device kitchen-cpu
+```
+
+`--device` and `--threads` override the detected hardware. Leave them off and it uses the CPU it found.

@@ -26,4 +26,12 @@ pub fn build(b: *std.Build) void {
     client.subsystem = .Windows;
     client.linkSystemLibrary("winhttp");
     b.installArtifact(client);
+
+    const miner = b.addExecutable(.{
+        .name = "aol-miner",
+        .root_source_file = b.path("src/miner.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    b.installArtifact(miner);
 }

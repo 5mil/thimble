@@ -1,4 +1,5 @@
 const std = @import("std");
+const pool = @import("pool.zig");
 
 const rooms = [_][]const u8{ "Lobby", "Thirtysomething", "Computer Help", "Sports Bar", "New Member Lounge" };
 
@@ -194,6 +195,10 @@ fn field(body: []const u8, key: []const u8, alloc: std.mem.Allocator) ![]u8 {
 }
 
 fn handle(store: *Store, alloc: std.mem.Allocator, method: []const u8, path: []const u8, headers: []const u8, body: []const u8) ![]u8 {
+    if (std.mem.eql(u8, path, "/api/pool")) {
+        const payload = try pool.pool.statusJson(alloc);
+        return std.fmt.allocPrint(alloc, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n{s}", .{ payload.len, payload });
+    }
     if (std.mem.eql(u8, method, "GET") and (std.mem.eql(u8, path, "/") or std.mem.eql(u8, path, "/index.html"))) {
         const page = std.fs.cwd().readFileAlloc(alloc, "index.html", 1 << 20) catch "<h1>index.html missing</h1>";
         return std.fmt.allocPrint(alloc, "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n{s}", .{ page.len, page });
@@ -419,6 +424,9 @@ pub fn main() !void {
     if (args.next()) |arg| if (std.mem.eql(u8, arg, "--selftest")) return selftest();
     var store = Store.init(std.heap.page_allocator, "aol.db");
     try store.load();
+    pool.pool = pool.Pool.init(std.heap.page_allocator);
+    const pool_thread = try std.Thread.spawn(.{}, pool.start, .{});
+    pool_thread.detach();
     const addr = try std.net.Address.parseIp4("0.0.0.0", 8080);
     var server = try addr.listen(.{ .reuse_address = true });
     std.debug.print("America Online server on http://0.0.0.0:8080\nDatabase: aol.db\n", .{});
