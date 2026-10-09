@@ -1,6 +1,6 @@
 # America Online, written in Zig
 
-The host and the Windows window are Zig. The page is still HTML, because a browser has to draw it.
+The host keeps the members. The rooms keep the seconds. The page is still HTML, because a browser has to draw it.
 
 ## Run the host
 
