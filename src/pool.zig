@@ -27,7 +27,11 @@ pub const Pool = struct {
         self.lock.lock();
         defer self.lock.unlock();
         var out = std.ArrayList(u8).init(alloc);
-        try out.appendSlice("{\"algos\":[\"sha256d\",\"scrypt\",\"ethash\",\"kawpow\",\"randomx\",\"yescrypt\"],\"ports\":{\"sha256d\":3333,\"scrypt\":3334,\"ethash\":3335,\"kawpow\":3336,\"randomx\":3337,\"yescrypt\":3338},\"accepted\":");
+        try out.appendSlice("{\"coin\":");
+        const cfg = std.fs.cwd().readFileAlloc(alloc, "coin.cfg", 4096) catch "name=none\n";
+        const name_at = std.mem.indexOf(u8, cfg, "name=") orelse 0;
+        const name = if (name_at == 0 and !std.mem.startsWith(u8, cfg, "name=")) "none" else cfg[name_at + 5 .. std.mem.indexOfScalarPos(u8, cfg, name_at, '\n') orelse cfg.len];
+        try out.writer().print("\"{s}\",\"algos\":[\"sha256d\",\"scrypt\",\"ethash\",\"kawpow\",\"randomx\",\"yescrypt\"],\"ports\":{{\"sha256d\":3333,\"scrypt\":3334,\"ethash\":3335,\"kawpow\":3336,\"randomx\":3337,\"yescrypt\":3338}},\"accepted\":", .{name});
         try out.writer().print("{d},\"rejected\":{d},\"workers\":[", .{ self.accepted, self.rejected });
         for (self.workers.items, 0..) |w, i| {
             if (i != 0) try out.append(',');

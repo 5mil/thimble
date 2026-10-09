@@ -34,4 +34,12 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     b.installArtifact(miner);
+
+    const coin = b.addExecutable(.{
+        .name = "aol-coin",
+        .root_source_file = b.path("src/coin.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    b.installArtifact(coin);
 }

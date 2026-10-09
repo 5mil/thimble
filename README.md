@@ -1,6 +1,6 @@
 # America Online, written in Zig
 
-The host keeps the members. The rooms keep the seconds. The page is still HTML, because a browser has to draw it.
+The host and the Windows window are Zig. The page is still HTML, because a browser has to draw it.
 
 ## Run the host
 
@@ -51,3 +51,15 @@ The miner counts CPUs, looks for `/dev/nvidia0`, `/dev/dri/card0`, and `/dev/tty
 ```
 ./aol-miner --host 127.0.0.1 --port 3335 --worker SteveCaseFan.rig1 --threads 4 --device gpu
 ```
+
+## Coin codebase
+
+The pool can download a coin tree and advertise it. Orthal and agave-hybrid are the known names. Any git URL works.
+
+```
+zig build-exe src/coin.zig -OReleaseSafe -femit-bin=aol-coin
+./aol-coin list
+./aol-coin fetch orthal
+```
+
+That clones into `coin-src/` and writes `coin.cfg`. The pool reads the name on `/api/pool`. Building the validator is the coin's own command, printed after the fetch. This host does not vendor the chain.
