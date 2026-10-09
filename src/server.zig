@@ -181,6 +181,16 @@ fn jsonString(alloc: std.mem.Allocator, text: []const u8) ![]u8 {
     return out.toOwnedSlice();
 }
 
+fn formOrJson(body: []const u8, key: []const u8, alloc: std.mem.Allocator) ![]u8 {
+    if (std.mem.indexOf(u8, body, "\":\"")) |_| return field(body, key, alloc);
+    var pat: [40]u8 = undefined;
+    const p = std.fmt.bufPrint(&pat, "{s}=", .{key}) catch return alloc.dupe(u8, "");
+    const at = std.mem.indexOf(u8, body, p) orelse return alloc.dupe(u8, "");
+    const rest = body[at + p.len ..];
+    const end = std.mem.indexOfScalar(u8, rest, '&') orelse rest.len;
+    return alloc.dupe(u8, rest[0..end]);
+}
+
 fn field(body: []const u8, key: []const u8, alloc: std.mem.Allocator) ![]u8 {
     var pat_buf: [40]u8 = undefined;
     const pat = std.fmt.bufPrint(&pat_buf, "\"{s}\":\"", .{key}) catch return alloc.dupe(u8, "");
@@ -195,6 +205,35 @@ fn field(body: []const u8, key: []const u8, alloc: std.mem.Allocator) ![]u8 {
 }
 
 fn handle(store: *Store, alloc: std.mem.Allocator, method: []const u8, path: []const u8, headers: []const u8, body: []const u8) ![]u8 {
+    if (std.mem.eql(u8, path, "/admin")) {
+        const page = "<html><body style=\"background:#1a2420;color:#d7d2c8;font-family:Georgia,serif\"><h1>Pool admin</h1><p>Paste a compatible coin repo. The host clones it and points the pool at that name.</p><form method=\"POST\" action=\"/api/admin/coin\">Admin token <input name=\"token\"><br>Repo <input name=\"repo\" size=\"60\" placeholder=\"https://github.com/5mil/orthal.git\"><br><button>Build pool</button></form></body></html>";
+        return std.fmt.allocPrint(alloc, "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n{s}", .{ page.len, page });
+    }
+    if (std.mem.eql(u8, path, "/api/admin/coin")) {
+        const token = formOrJson(body, "token", alloc) catch "";
+        const repo = formOrJson(body, "repo", alloc) catch "";
+        const expected = std.posix.getenv("AOL_ADMIN") orelse "lobby";
+        if (!std.mem.eql(u8, token, expected) or !std.mem.startsWith(u8, repo, "https://")) {
+            const payload = "{\"ok\":false,\"error\":\"Admin token or https repo required.\"}";
+            return std.fmt.allocPrint(alloc, "HTTP/1.1 403 OK\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n{s}", .{ payload.len, payload });
+        }
+        const name = std.fs.path.stem(repo);
+        const dest = try std.fmt.allocPrint(alloc, "coin-src/{s}", .{name});
+        var child = std.process.Child.init(&.{ "git", "clone", "--depth", "1", repo, dest }, alloc);
+        const term = child.spawnAndWait() catch {
+            const payload = "{\"ok\":false,\"error\":\"git failed to start\"}";
+            return std.fmt.allocPrint(alloc, "HTTP/1.1 500 OK\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n{s}", .{ payload.len, payload });
+        };
+        if (term != .Exited or term.Exited != 0) {
+            const payload = "{\"ok\":false,\"error\":\"clone failed\"}";
+            return std.fmt.allocPrint(alloc, "HTTP/1.1 502 OK\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n{s}", .{ payload.len, payload });
+        }
+        var file = try std.fs.cwd().createFile("coin.cfg", .{});
+        defer file.close();
+        try file.writer().print("name={s}\nrepo={s}\npath={s}\n", .{ name, repo, dest });
+        const payload = try std.fmt.allocPrint(alloc, "{{\"ok\":true,\"coin\":\"{s}\",\"path\":\"{s}\"}}", .{ name, dest });
+        return std.fmt.allocPrint(alloc, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n{s}", .{ payload.len, payload });
+    }
     if (std.mem.eql(u8, path, "/api/pool")) {
         const payload = try pool.pool.statusJson(alloc);
         return std.fmt.allocPrint(alloc, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n{s}", .{ payload.len, payload });

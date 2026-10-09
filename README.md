@@ -63,3 +63,5 @@ zig build-exe src/coin.zig -OReleaseSafe -femit-bin=aol-coin
 ```
 
 That clones into `coin-src/` and writes `coin.cfg`. The pool reads the name on `/api/pool`. Building the validator is the coin's own command, printed after the fetch. This host does not vendor the chain.
+
+An admin can do the same from the host. Open `http://127.0.0.1:8080/admin`, paste an `https://` repo, and the token. The token is `lobby` unless `AOL_ADMIN` is set. The host clones the tree into `coin-src/` and the pool advertises that coin.
