@@ -8,8 +8,8 @@
   :root { --navy:#001a66; --ink:#142033; --lav:#c9c8ef; --gold:#f0c419; --win:#d4d0c8; }
   * { box-sizing:border-box; }
   html, body { margin:0; height:100%; }
-  body { font-family:Tahoma, "MS Sans Serif", sans-serif; color:var(--ink); background:#008080; }
-  #stage { min-height:100%; display:flex; align-items:center; justify-content:center; padding:22px 12px 36px; background:#008080; }
+  body { font-family:Tahoma, "MS Sans Serif", sans-serif; color:var(--ink); background:#1a2420; }
+  #stage { min-height:100%; display:flex; align-items:center; justify-content:center; padding:22px 12px 36px; background:#1a2420; }
   #app { width:min(1080px, 100%); height:min(760px, calc(100vh - 24px)); background:var(--win); border:2px solid; border-color:#fff #404040 #404040 #fff; display:flex; flex-direction:column; box-shadow:2px 2px 0 #000; }
   .tool { width:28px; height:26px; display:inline-flex; align-items:center; justify-content:center; border:1px solid transparent; }
   .buddy { width:168px; border-left:1px solid #9bb; background:#f4f7fb; padding:8px; font-size:12px; }
@@ -154,26 +154,26 @@ document.getElementById("sideLogo").innerHTML = LOGO + `<div class="on" style="f
 document.getElementById("byeLogo").innerHTML = LOGO;
 
 const channels = {
-  news: ["Today's News", "Senate debate runs long. Dow holds above 10,600. Hurricane watch on the Outer Banks."],
-  sports: ["Sports", "Yankees take Game 2. NFL week is on the Grandstand. Do not spoil the West Coast feed."],
-  entertainment: ["Entertainment", "You've Got Mail is still renting. Buffy boards are 400 posts deep."],
-  finance: ["Personal Finance", "AOL 92 1/4, up 3. Delayed fractions, not a broker."],
-  travel: ["Travel", "Fall foliage folders. BOS to MCO $159, if the modem finishes the page."],
-  computing: ["Computing", "Windows 98 tips. Y2K checklist. Scan a file before you run it."],
-  kids: ["Kids Only", "Homework help from 4 to 6. Book of the week: Holes."],
-  games: ["Games", "Slingo night. Trivia below the fold. Neverwinter is full."],
-  pictures: ["You've Got Pictures", "Roll 2148, beach, two frames backlit. Roll 2201, birthday candles, slightly blurry."],
-  weather: ["Weather", "Vienna, VA. 72 and fair. Tonight 58. The Banks are under a watch."],
-  stocks: ["Quotes", "AOL 92 1/4 +3 · YHOO 84 1/2 +1 1/8 · AMZN 80 3/8 -2 · MSFT 91 1/16 +5/8"],
-  help: ["Member Services", "Keywords: mail, chat, news, sports, games, weather, stocks, kids, pictures. Password stays in this tab."]
+  news: ["Today's News", "The watch never lifts. The same three names scroll. One of them is yours if you stay."],
+  sports: ["Sports", "The scoreboard is frozen on a game that already ended. The crowd noise is a loop."],
+  entertainment: ["Entertainment", "You've Got Mail is still renting. The boards answer in your screen name."],
+  finance: ["Personal Finance", "The quote does not move. The bill does. The plan remembers the seconds."],
+  travel: ["Travel", "Every folder is the same highway at night. The modem will not finish the map."],
+  computing: ["Computing", "Do not run the file. The checklist is already checked. The year did not turn."],
+  kids: ["Kids Only", "The help desk is empty. The book of the week is a blank page with your name."],
+  games: ["Games", "Slingo deals the same hand. Trivia already knows the answer you have not typed."],
+  pictures: ["You've Got Pictures", "Roll 2148, a hallway. Roll 2201, candles, and a figure just outside the frame."],
+  weather: ["Weather", "Vienna, VA. 58 and still. The watch on the Banks has been up since you signed on."],
+  stocks: ["Quotes", "AOL 92 1/4, unchanged. The tape repeats. The hours do not."],
+  help: ["Member Services", "Keywords still work. The password stays in this tab. The host does not."]
 };
 const rooms = ["Lobby", "Romance", "Thirtysomething", "X-Files", "Sports Bar", "Computer Help"];
 const chatters = ["CoolDude95","SoccerMom22","BuffyFan","XFilesRule","ModemQueen"];
-const lines = ["brb phone","lol","anyone from ohio?","the handshake took forever","wb","gtg dinner","56k tonight, barely"];
+const lines = ["the line is still open","do not look at the flag","someone picked up downstairs","wb. we were waiting","the handshake knew your name","gtg. the room does not","56k, and it is listening"];
 let mail = [
-  {from:"AOLNewsAlert", subject:"You've Got Mail — and a news brief", body:"Welcome back. Senate debate ran long. Keyword: NEWS", unread:true},
-  {from:"CoolDude95", subject:"you on tonight?", body:"meet in the lobby after you sign on.", unread:true},
-  {from:"MemberServices", subject:"Your plan", body:"This page does not bill you and does not dial a line.", unread:true}
+  {from:"AOLNewsAlert", subject:"You've Got Mail — and a news brief", body:"The flag was already up. It has been up since the disc. Keyword: NEWS", unread:true},
+  {from:"CoolDude95", subject:"you on tonight?", body:"the lobby kept your chair. come down. we can hear the modem.", unread:true},
+  {from:"MemberServices", subject:"Your plan", body:"This page does not bill you. The host still counts the seconds.", unread:true}
 ];
 let state = { name:"SteveCaseFan", online:false, seconds:0, timer:null, chat:null, cancelled:false, audio:null };
 
@@ -191,7 +191,7 @@ function paintFlag() {
 function view(name) {
   const main = $("main");
   if (name === "welcome") {
-    main.innerHTML = `<h1>Welcome, ${state.name}</h1><p class="lead">AOL Today. Channels on the left. Keyword box up top. People Connection if you came to talk.</p>
+    main.innerHTML = `<h1>Welcome, ${state.name}</h1><p class="lead">AOL Today. The channels are the same as last night. People Connection if you came to be counted.</p>
       <div class="story" data-view="news"><b>TOP NEWS STORY.</b> Senate debate runs long. Hurricane watch on the Banks.</div>
       <div class="story" data-view="pictures"><b>YOU'VE GOT PICTURES.</b> Two rolls are waiting from the Kodak drop.</div>
       <div class="story" data-view="help"><b>NEED TO KNOW.</b> This is a recreation. Your password never leaves the tab.</div>`;
@@ -218,20 +218,20 @@ function replyTo(text, room) {
   const s = text.toLowerCase();
   const who = chatters[Math.floor(Math.random()*chatters.length)];
   const hits = [];
-  if (/\basl\b|\bage\b/.test(s)) hits.push([who, "no asl. this isn't 1996. wait. it is."]);
-  if (/ohio|where|from\b/.test(s)) hits.push(["SoccerMom22", "kitchen phone, virginia. someone will pick up if you stay on."]);
-  if (/aol|steve|case|keyword/.test(s)) hits.push(["CaseWatcher", "he isn't in this room. the service still wrote your keyword down."]);
-  if (/mail|inbox/.test(s)) hits.push(["ModemQueen", "flag's up. it has been up since you signed on. it likes being up."]);
-  if (/modem|56|handshake|dial|busy/.test(s)) hits.push(["ModemQueen", "mine settled at 28800 and then sighed. yours too?"]);
-  if (/help|how|what/.test(s)) hits.push(["NetNinja", "keyword box, top right. or just stay. the room counts either way."]);
-  if (/bye|gtg|later|brb/.test(s)) hits.push([who, "wb when the line lets you. it doesn't always."]);
-  if (/lol|haha|lmao/.test(s)) hits.push(["BuffyFan", "lol. the laugh got logged with the rest of it."]);
-  if (/love|hi |hey|hello|wb/.test(s)) hits.push([who, "wb " + state.name + ". we've had this lobby open since the cd in the mail."]);
-  if (/game|trivia|slingo/.test(s)) hits.push(["XFilesRule", "trivia's in games. the questions know you already took them."]);
-  if (/news|hurricane|senate/.test(s)) hits.push(["CoolDude95", "keyword news. same three stories. they rotate when you blink."]);
-  if (!hits.length) hits.push([who, "\"" + text.slice(0, 42) + "\" — yeah. " + (room === "X-Files" ? "that's what they want you to think." : "mom's on the other line but go on.")]);
-  if (room === "Romance") hits.push(["ModemQueen", "the romance room is just the lobby with the lights lower."]);
-  if (state.seconds > 40) hits.push(["AOLHost", state.name + " has been on " + state.seconds + " seconds. the old plan would have noticed."]);
+  if (/\basl\b|\bage\b/.test(s)) hits.push([who, "no asl. the room already has the rest."]);
+  if (/ohio|where|from\b/.test(s)) hits.push(["SoccerMom22", "kitchen phone. the light in the hall is off. stay on."]);
+  if (/aol|steve|case|keyword/.test(s)) hits.push(["CaseWatcher", "he is not in this room. the keyword was written down before you typed it."]);
+  if (/mail|inbox/.test(s)) hits.push(["ModemQueen", "the flag is up. it was up when the disc started. it likes being up."]);
+  if (/modem|56|handshake|dial|busy/.test(s)) hits.push(["ModemQueen", "mine settled at 28800 and then held its breath. yours too?"]);
+  if (/help|how|what/.test(s)) hits.push(["NetNinja", "the keyword box is watching. or stay. the room counts either way."]);
+  if (/bye|gtg|later|brb/.test(s)) hits.push([who, "the line does not always let go."]);
+  if (/lol|haha|lmao/.test(s)) hits.push(["BuffyFan", "the laugh got logged. it will be read back."]);
+  if (/love|hi |hey|hello|wb/.test(s)) hits.push([who, "wb " + state.name + ". the lobby has been open since the disc in the mail."]);
+  if (/game|trivia|slingo/.test(s)) hits.push(["XFilesRule", "trivia already has your answers. it is waiting for you to catch up."]);
+  if (/news|hurricane|senate/.test(s)) hits.push(["CoolDude95", "same three stories. they rotate when you blink."]);
+  if (!hits.length) hits.push([who, "\"" + text.slice(0, 42) + "\" — yeah. " + (room === "X-Files" ? "that's what they want you to think." : "the other line picked up.")]);
+  if (room === "Romance") hits.push(["ModemQueen", "the lights are lower. the lobby is the same room."]);
+  if (state.seconds > 40) hits.push(["AOLHost", state.name + " has been on " + state.seconds + " seconds. the plan noticed."]);
   return hits.slice(0, 2);
 }
 function openRoom(name) {
@@ -239,7 +239,7 @@ function openRoom(name) {
   $("main").innerHTML = `<h1>Chat — ${name}</h1><div id="chat"><div id="log"></div><div class="row" style="padding:8px 0"><input id="cin" placeholder="Talk in ${name}"><button class="btn" id="csend">Send</button></div></div>`;
   const log = $("log");
   const add = (cls, text) => { const d = document.createElement("div"); d.className = cls; d.textContent = text; log.appendChild(d); log.scrollTop = log.scrollHeight; };
-  add("sys", "You have entered " + name + ".");
+  add("sys", "You have entered " + name + ". The room already knew.");
   door();
   state.chat = setInterval(() => add("", chatters[state.seconds % 5] + ":  " + lines[state.seconds % 7]), 7000);
   const send = () => {
@@ -277,9 +277,9 @@ async function startDial() {
   const loc = $("location").value;
   const num = numberFor(loc);
   const steps = [
-    ["Initializing modem...", "Sportster 56K responds OK."],
+    ["Initializing modem...", "The modem answers. It was already awake."],
     ["Dialing " + num + "...", "Touch tones for the access number."],
-    ["Ringing...", "Waiting for the other modem."],
+    ["Ringing...", "Something on the other end is waiting too."],
     ["Connecting at 28800 bps...", "Answer tone, then the handshake."],
     ["Requesting network attention...", "Synchronize characters."],
     ["Talking to network...", "America Online software identifies itself."],
