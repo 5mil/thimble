@@ -33,13 +33,21 @@ The page and the program use the same accounts on that host.
 
 ## Mining pool
 
-The host also listens on port 3333. A worker logs in with a name, a thread count, and a device. The pool sends a job and counts shares. `GET /api/pool` lists who is connected.
+The host speaks Stratum V1, the same handshake Magister and gitmine use: `mining.subscribe`, `mining.authorize`, `mining.notify`, `mining.submit`. ASIC firmware and GPU miners that speak that handshake can point at it. The password can say `asic` or `gpu`; the worker name is `screen.rig`.
 
-The miner detects the CPU count. Pass flags when the automatic guess is wrong:
+Ports, one algorithm each:
+
+- 3333 sha256d, the ASIC Bitcoin-style port
+- 3334 scrypt
+- 3335 ethash, GPU
+- 3336 kawpow, GPU
+- 3337 randomx, CPU
+- 3338 yescrypt, the Yes ZigR32 algorithm name
+
+`GET /api/pool` lists workers, algorithm, and device class.
+
+The miner counts CPUs, looks for `/dev/nvidia0`, `/dev/dri/card0`, and `/dev/ttyUSB0`, then still obeys the flags:
 
 ```
-zig build-exe src/miner.zig -OReleaseSafe -femit-bin=aol-miner
-./aol-miner --host 127.0.0.1 --worker SteveCaseFan.rig1 --threads 4 --device kitchen-cpu
+./aol-miner --host 127.0.0.1 --port 3335 --worker SteveCaseFan.rig1 --threads 4 --device gpu
 ```
-
-`--device` and `--threads` override the detected hardware. Leave them off and it uses the CPU it found.
