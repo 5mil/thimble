@@ -50,12 +50,12 @@ pub const Pool = struct {
             }
             if (!first_party) try out.append(',');
             first_party = false;
-            try out.writer().print("{{\"name\":\"{s}\",\"shares\":{d}}}", .{ w.party, total });
+            try out.writer().print("{{\"name\":\"{s}\",\"shares\":{d}}}", .{ clean(w.party), total });
         }
         try out.appendSlice("],\"workers\":[");
         for (self.workers.items, 0..) |w, i| {
             if (i != 0) try out.append(',');
-            try out.writer().print("{{\"name\":\"{s}\",\"party\":\"{s}\",\"algo\":\"{s}\",\"device\":\"{s}\",\"threads\":{d},\"agent\":\"{s}\",\"shares\":{d}}}", .{ w.name, w.party, w.algo, w.device, w.threads, w.agent, w.shares });
+            try out.writer().print("{{\"name\":\"{s}\",\"party\":\"{s}\",\"algo\":\"{s}\",\"device\":\"{s}\",\"threads\":{d},\"agent\":\"{s}\",\"shares\":{d}}}", .{ clean(w.name), clean(w.party), clean(w.algo), clean(w.device), w.threads, clean(w.agent), w.shares });
         }
         try out.appendSlice("]}");
         return out.toOwnedSlice();
@@ -92,6 +92,11 @@ fn jsonString(line: []const u8, key: []const u8, out: []u8) []u8 {
         n += 1;
     }
     return out[0..n];
+}
+
+fn clean(text: []const u8) []const u8 {
+    for (text) |c| if (c == '"' or c == '\\' or c < 32) return "bad";
+    return text;
 }
 
 fn partyOf(name: []const u8) []const u8 {

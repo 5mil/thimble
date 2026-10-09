@@ -181,6 +181,20 @@ fn jsonString(alloc: std.mem.Allocator, text: []const u8) ![]u8 {
     return out.toOwnedSlice();
 }
 
+fn fixedEqual(a: []const u8, b: []const u8) bool {
+    var diff: u8 = @intFromBool(a.len != b.len);
+    const n = @min(a.len, b.len);
+    for (a[0..n], b[0..n]) |x, y| diff |= x ^ y;
+    return diff == 0 and a.len == b.len;
+}
+
+fn safeRepo(repo: []const u8) bool {
+    if (repo.len < 20 or repo.len > 120) return false;
+    if (std.mem.indexOf(u8, repo, "..") != null) return false;
+    if (std.mem.indexOfAny(u8, repo, " \t\r\n'\"`;$") != null) return false;
+    return std.mem.startsWith(u8, repo, "https://github.com/") or std.mem.startsWith(u8, repo, "https://gitlab.com/");
+}
+
 fn formOrJson(body: []const u8, key: []const u8, alloc: std.mem.Allocator) ![]u8 {
     if (std.mem.indexOf(u8, body, "\":\"")) |_| return field(body, key, alloc);
     var pat: [40]u8 = undefined;
@@ -212,9 +226,9 @@ fn handle(store: *Store, alloc: std.mem.Allocator, method: []const u8, path: []c
     if (std.mem.eql(u8, path, "/api/admin/coin")) {
         const token = formOrJson(body, "token", alloc) catch "";
         const repo = formOrJson(body, "repo", alloc) catch "";
-        const expected = std.posix.getenv("AOL_ADMIN") orelse "lobby";
-        if (!std.mem.eql(u8, token, expected) or !std.mem.startsWith(u8, repo, "https://")) {
-            const payload = "{\"ok\":false,\"error\":\"Admin token or https repo required.\"}";
+        const expected = std.posix.getenv("AOL_ADMIN") orelse "";
+        if (expected.len < 8 or !fixedEqual(token, expected) or !safeRepo(repo)) {
+            const payload = "{\"ok\":false,\"error\":\"Admin token missing or repo not allowed.\"}";
             return std.fmt.allocPrint(alloc, "HTTP/1.1 403 OK\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n{s}", .{ payload.len, payload });
         }
         const name = std.fs.path.stem(repo);

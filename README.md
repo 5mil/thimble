@@ -57,7 +57,7 @@ Leave `--threads` and `--device` off and it counts CPUs and looks for `/dev/nvid
 
 Admin page: http://127.0.0.1:8080/admin
 
-Token is `lobby` unless `AOL_ADMIN` is set. Repo must be `https://`. The host clones it into `coin-src/` and writes `coin.cfg`. The pool advertises that name. It does not compile the validator. That command belongs to the coin.
+Set `AOL_ADMIN` to at least 8 characters before you start the host. There is no default token. The repo must be `https://github.com/` or `https://gitlab.com/`, with no spaces and no `..`. The host clones it into `coin-src/` and writes `coin.cfg`. The pool advertises that name. It does not compile the validator. That command belongs to the coin.
 
 The same fetch from a shell:
 
