@@ -12,6 +12,7 @@ pub const Pool = struct {
 
     pub const Worker = struct {
         name: []u8,
+        party: []u8,
         algo: []u8,
         device: []u8,
         threads: u32,
@@ -32,10 +33,29 @@ pub const Pool = struct {
         const name_at = std.mem.indexOf(u8, cfg, "name=") orelse 0;
         const name = if (name_at == 0 and !std.mem.startsWith(u8, cfg, "name=")) "none" else cfg[name_at + 5 .. std.mem.indexOfScalarPos(u8, cfg, name_at, '\n') orelse cfg.len];
         try out.writer().print("\"{s}\",\"algos\":[\"sha256d\",\"scrypt\",\"ethash\",\"kawpow\",\"randomx\",\"yescrypt\"],\"ports\":{{\"sha256d\":3333,\"scrypt\":3334,\"ethash\":3335,\"kawpow\":3336,\"randomx\":3337,\"yescrypt\":3338}},\"accepted\":", .{name});
-        try out.writer().print("{d},\"rejected\":{d},\"workers\":[", .{ self.accepted, self.rejected });
+        try out.writer().print("{d},\"rejected\":{d},\"party\":[", .{ self.accepted, self.rejected });
+        var seen_party = std.ArrayList([]const u8).init(alloc);
+        defer seen_party.deinit();
+        var first_party = true;
+        for (self.workers.items) |w| {
+            var known = false;
+            for (seen_party.items) |p| {
+                if (std.mem.eql(u8, p, w.party)) known = true;
+            }
+            if (known) continue;
+            try seen_party.append(w.party);
+            var total: u64 = 0;
+            for (self.workers.items) |m| {
+                if (std.mem.eql(u8, m.party, w.party)) total += m.shares;
+            }
+            if (!first_party) try out.append(',');
+            first_party = false;
+            try out.writer().print("{{\"name\":\"{s}\",\"shares\":{d}}}", .{ w.party, total });
+        }
+        try out.appendSlice("],\"workers\":[");
         for (self.workers.items, 0..) |w, i| {
             if (i != 0) try out.append(',');
-            try out.writer().print("{{\"name\":\"{s}\",\"algo\":\"{s}\",\"device\":\"{s}\",\"threads\":{d},\"agent\":\"{s}\",\"shares\":{d}}}", .{ w.name, w.algo, w.device, w.threads, w.agent, w.shares });
+            try out.writer().print("{{\"name\":\"{s}\",\"party\":\"{s}\",\"algo\":\"{s}\",\"device\":\"{s}\",\"threads\":{d},\"agent\":\"{s}\",\"shares\":{d}}}", .{ w.name, w.party, w.algo, w.device, w.threads, w.agent, w.shares });
         }
         try out.appendSlice("]}");
         return out.toOwnedSlice();
@@ -72,6 +92,43 @@ fn jsonString(line: []const u8, key: []const u8, out: []u8) []u8 {
         n += 1;
     }
     return out[0..n];
+}
+
+fn partyOf(name: []const u8) []const u8 {
+    const dot = std.mem.indexOfScalar(u8, name, '.') orelse return "lobby";
+    if (dot == 0) return "lobby";
+    return name[0..dot];
+}
+
+fn loadParty() void {
+    const raw = std.fs.cwd().readFileAlloc(pool.alloc, "party.db", 1 << 20) catch return;
+    var it = std.mem.splitScalar(u8, raw, '\n');
+    while (it.next()) |line| {
+        if (line.len < 3) continue;
+        var parts = std.mem.splitScalar(u8, line, '\t');
+        const name = parts.next() orelse continue;
+        const party = parts.next() orelse "lobby";
+        const algo = parts.next() orelse "sha256d";
+        const shares = std.fmt.parseInt(u64, parts.next() orelse "0", 10) catch 0;
+        pool.accepted += shares;
+        pool.workers.append(.{
+            .name = pool.alloc.dupe(u8, name) catch "",
+            .party = pool.alloc.dupe(u8, party) catch "",
+            .algo = pool.alloc.dupe(u8, algo) catch "",
+            .device = pool.alloc.dupe(u8, "saved") catch "",
+            .threads = 0,
+            .agent = pool.alloc.dupe(u8, "disk") catch "",
+            .shares = shares,
+        }) catch {};
+    }
+}
+
+fn saveParty() void {
+    var file = std.fs.cwd().createFile("party.db", .{}) catch return;
+    defer file.close();
+    for (pool.workers.items) |w| {
+        file.writer().print("{s}\t{s}\t{s}\t{d}\n", .{ w.name, w.party, w.algo, w.shares }) catch return;
+    }
 }
 
 fn shareOk(algo: []const u8, worker: []const u8, nonce: []const u8) bool {
@@ -123,9 +180,16 @@ fn serve(conn: std.net.Server.Connection, algo: []const u8) void {
             if (std.mem.indexOf(u8, line, "asic")) |_| { @memcpy(device[0..4], "asic"); device_len = 4; }
             if (std.mem.indexOf(u8, line, "cpu")) |_| { @memcpy(device[0..3], "cpu"); device_len = 3; }
             authorized = worker_len > 0;
+            const party = partyOf(worker[0..worker_len]);
+            var existing = false;
             pool.lock.lock();
-            pool.workers.append(.{
+            for (pool.workers.items) |*w| if (std.mem.eql(u8, w.name, worker[0..worker_len])) {
+                w.device = pool.alloc.dupe(u8, device[0..device_len]) catch w.device;
+                existing = true;
+            };
+            if (!existing) pool.workers.append(.{
                 .name = pool.alloc.dupe(u8, worker[0..worker_len]) catch "",
+                .party = pool.alloc.dupe(u8, party) catch "",
                 .algo = pool.alloc.dupe(u8, algo) catch "",
                 .device = pool.alloc.dupe(u8, device[0..device_len]) catch "",
                 .threads = threads,
@@ -145,6 +209,7 @@ fn serve(conn: std.net.Server.Connection, algo: []const u8) void {
                 w.shares += 1;
             };
             pool.lock.unlock();
+            if (ok) saveParty();
             const msg = std.fmt.bufPrint(&reply, "{{\"id\":{s},\"result\":{s},\"error\":{s}}}\n", .{ if (id.len == 0) "3" else id, if (ok) "true" else "false", if (ok) "null" else "[23,\"low difficulty\",null]" }) catch return;
             _ = conn.stream.writeAll(msg) catch return;
         } else if (method.len == 0 and std.mem.indexOf(u8, line, "\"method\":\"login\"") != null) {
@@ -169,6 +234,7 @@ fn listen(port: u16, algo: []const u8) void {
 }
 
 pub fn start() !void {
+    loadParty();
     for (algos, ports) |algo, port| {
         const thread = try std.Thread.spawn(.{}, listen, .{ port, algo });
         thread.detach();

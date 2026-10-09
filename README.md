@@ -69,3 +69,7 @@ zig build-exe src/coin.zig -OReleaseSafe -femit-bin=aol-coin
 ```
 
 Known names: orthal, agave-hybrid.
+
+## Party
+
+The group is the text before the dot in the worker name. `Kitchen.rig1` and `Kitchen.asic` share one party. A name with no dot joins `lobby`. Shares are written to `party.db` and loaded again on the next start, so a restart does not clear the night. `/api/pool` lists each party total next to the workers. Reconnecting the same worker updates the device and does not open a second seat.
