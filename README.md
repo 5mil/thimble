@@ -1,29 +1,31 @@
-# America Online, written in Zig
+# thimble
 
-The host and the Windows window are Zig. The page is still HTML, because a browser has to draw it.
+A Windows window that thinks it is 1999, a host that keeps the screen names, and a pool that will take a coin repo if you paste one.
 
-## Run the host
+Show a friend the page: https://5mil.github.io/thimble/
+
+That page dials, plays the modem, and talks back. It does not share a room with you. The shared host is this branch.
+
+## Host
 
 ```
 zig build run
 ```
 
-Or build it once:
+Or:
 
 ```
 zig build-exe src/server.zig -OReleaseSafe -femit-bin=aol-server
 ./aol-server
 ```
 
-It listens on port 8080 and keeps members in `aol.db` next to the program. Open http://127.0.0.1:8080 to sign up. Screen names are stored. Passwords are stored as a PBKDF2 hash.
+Port 8080. Members stay in `aol.db`. Passwords are a PBKDF2 hash. Open http://127.0.0.1:8080 to sign up. Screen names are 3 to 16 letters and numbers, starting with a letter.
 
-`zig build-exe src/server.zig` then `./server --selftest` checks signup, a lobby line, and mail.
+`./aol-server --selftest` checks signup, a lobby line, and mail.
 
-## Windows client
+## Windows window
 
-`AmericaOnline.exe` is built from `src/client.zig`. Put the host machine in Host. Use `127.0.0.1` and `8080` on the same PC. Sign Up once, then Sign On. Send writes into the room. You've Got Mail reads the inbox.
-
-Rebuild the window from Linux or macOS with:
+`AmericaOnline.exe` is built from `src/client.zig`. Host `127.0.0.1`, port `8080`, on the same machine. Sign Up once, then Sign On. Send writes the room. You've Got Mail reads the inbox.
 
 ```
 zig build-exe src/client.zig -target x86_64-windows-gnu -OReleaseSafe -lwinhttp --subsystem windows -femit-bin=AmericaOnline.exe
@@ -31,37 +33,39 @@ zig build-exe src/client.zig -target x86_64-windows-gnu -OReleaseSafe -lwinhttp 
 
 The page and the program use the same accounts on that host.
 
-## Mining pool
+## Pool
 
-The host speaks Stratum V1, the same handshake Magister and gitmine use: `mining.subscribe`, `mining.authorize`, `mining.notify`, `mining.submit`. ASIC firmware and GPU miners that speak that handshake can point at it. The password can say `asic` or `gpu`; the worker name is `screen.rig`.
+The host speaks Stratum: `mining.subscribe`, `mining.authorize`, `mining.notify`, `mining.submit`. Worker name is `screen.rig`. Put `asic` or `gpu` in the password or the device flag.
 
-Ports, one algorithm each:
-
-- 3333 sha256d, the ASIC Bitcoin-style port
+- 3333 sha256d
 - 3334 scrypt
-- 3335 ethash, GPU
-- 3336 kawpow, GPU
-- 3337 randomx, CPU
-- 3338 yescrypt, the Yes ZigR32 algorithm name
+- 3335 ethash
+- 3336 kawpow
+- 3337 randomx
+- 3338 yescrypt
 
-`GET /api/pool` lists workers, algorithm, and device class.
-
-The miner counts CPUs, looks for `/dev/nvidia0`, `/dev/dri/card0`, and `/dev/ttyUSB0`, then still obeys the flags:
+`GET /api/pool` lists workers, algorithm, device, and the coin name.
 
 ```
+zig build-exe src/miner.zig -OReleaseSafe -femit-bin=aol-miner
 ./aol-miner --host 127.0.0.1 --port 3335 --worker SteveCaseFan.rig1 --threads 4 --device gpu
 ```
 
-## Coin codebase
+Leave `--threads` and `--device` off and it counts CPUs and looks for `/dev/nvidia0`, `/dev/dri/card0`, and `/dev/ttyUSB0`.
 
-The pool can download a coin tree and advertise it. Orthal and agave-hybrid are the known names. Any git URL works.
+## Coin
+
+Admin page: http://127.0.0.1:8080/admin
+
+Token is `lobby` unless `AOL_ADMIN` is set. Repo must be `https://`. The host clones it into `coin-src/` and writes `coin.cfg`. The pool advertises that name. It does not compile the validator. That command belongs to the coin.
+
+The same fetch from a shell:
 
 ```
 zig build-exe src/coin.zig -OReleaseSafe -femit-bin=aol-coin
 ./aol-coin list
 ./aol-coin fetch orthal
+./aol-coin fetch https://github.com/5mil/agave-hybrid.git
 ```
 
-That clones into `coin-src/` and writes `coin.cfg`. The pool reads the name on `/api/pool`. Building the validator is the coin's own command, printed after the fetch. This host does not vendor the chain.
-
-An admin can do the same from the host. Open `http://127.0.0.1:8080/admin`, paste an `https://` repo, and the token. The token is `lobby` unless `AOL_ADMIN` is set. The host clones the tree into `coin-src/` and the pool advertises that coin.
+Known names: orthal, agave-hybrid.
