@@ -104,23 +104,32 @@ pub fn sentence(buf: []u8) []u8 {
     return buf[0..n];
 }
 
+fn bar(n: u64, max: u64) [20]u8 {
+    var out: [20]u8 = [_]u8{'.'} ** 20;
+    if (max == 0) return out;
+    const filled = @min(@as(usize, 20), @as(usize, @intCast(n * 20 / max)));
+    for (out[0..filled]) |*c| c.* = '#';
+    return out;
+}
+
 pub fn line(buf: []u8) []u8 {
     var out = std.ArrayList(u8).init(std.heap.page_allocator);
-    if (count == 0) return std.fmt.bufPrint(buf, "", .{}) catch buf[0..0];
-    out.appendSlice("--- modules ---\n") catch {};
+    if (count == 0) return std.fmt.bufPrint(buf, "No modules.", .{}) catch buf[0..0];
+    out.appendSlice("--- chains ---\n") catch {};
+    var any = false;
     for (mods[0..count]) |m| {
-        const src = if (m.source_len == 0) "no source" else m.source[0..m.source_len];
-        out.writer().print("{s}   {s}   {d}   {s}   merge {s}   {d}%   shares {d}\n", .{
-            m.name[0..m.name_len],
-            m.algo[0..m.algo_len],
-            m.port,
-            if (m.on) "running" else "stopped",
-            m.merge[0..m.merge_len],
-            m.bonus,
-            m.accepted,
-        }) catch {};
-        out.writer().print("           source {s}\n", .{src}) catch {};
+        if (!m.on) continue;
+        any = true;
+        const state = if (m.source_len == 0) "WAITING" else "LIVE";
+        const height = if (m.height > 0) m.height else 0;
+        const mark = bar(height, if (height > 0) height else 1);
+        out.writer().print("\n[{s}]  {s}  {s}  port {d}\n", .{ state, m.name[0..m.name_len], m.algo[0..m.algo_len], m.port }) catch {};
+        out.writer().print("  height   {d}  [{s}]\n", .{ height, mark }) catch {};
+        out.writer().print("  source   {s}\n", .{if (m.source_len == 0) "none set" else m.source[0..m.source_len]}) catch {};
+        out.writer().print("  merge    {s}   child height {d}\n", .{ m.merge[0..m.merge_len], m.child_height }) catch {};
+        out.writer().print("  shares   {d}  stale {d}  house {s}  bonus {d}%\n", .{ m.accepted, m.stale, if (house_on) "on" else "off", m.bonus }) catch {};
     }
+    if (!any) out.appendSlice("No module is running.\n") catch {};
     const n = @min(out.items.len, buf.len);
     @memcpy(buf[0..n], out.items[0..n]);
     return buf[0..n];
