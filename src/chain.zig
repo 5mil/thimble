@@ -48,6 +48,25 @@ fn note(text: []const u8) void {
     source.last_error_len = n;
 }
 
+pub var build_stage: [32]u8 = undefined;
+pub var build_stage_len: usize = 0;
+pub var build_detail: [120]u8 = undefined;
+pub var build_detail_len: usize = 0;
+
+pub fn setStage(stage: []const u8, detail: []const u8) void {
+    const n = @min(stage.len, build_stage.len);
+    @memcpy(build_stage[0..n], stage[0..n]);
+    build_stage_len = n;
+    const d = @min(detail.len, build_detail.len);
+    @memcpy(build_detail[0..d], detail[0..d]);
+    build_detail_len = d;
+}
+
+pub fn stageLine(buf: []u8) []u8 {
+    if (build_stage_len == 0) return std.fmt.bufPrint(buf, "codebase  none", .{}) catch buf[0..0];
+    return std.fmt.bufPrint(buf, "codebase  {s}  {s}", .{ build_stage[0..build_stage_len], if (build_detail_len > 0) build_detail[0..build_detail_len] else "" }) catch buf[0..0];
+}
+
 pub fn line(buf: []u8) []u8 {
     source.lock.lock();
     defer source.lock.unlock();

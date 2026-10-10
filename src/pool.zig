@@ -93,6 +93,9 @@ pub fn reportText(alloc: std.mem.Allocator) ![]u8 {
         pn += piece.len;
     }
     if (pn == 0) pn = (std.fmt.bufPrint(&ports_on, "none", .{}) catch "none").len;
+    try out.appendSlice("--- codebase ---\n");
+    var stage_buf: [180]u8 = undefined;
+    try out.writer().print("{s}\n", .{chain.stageLine(&stage_buf)});
     try out.appendSlice("--- ports ---\n");
     try out.writer().print("open  {s}\n", .{ports_on[0..pn]});
     var chain_buf: [200]u8 = undefined;

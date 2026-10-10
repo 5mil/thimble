@@ -263,23 +263,48 @@ fn toggleModule() void {
     showReport();
 }
 
+fn fetchWorker(repo: [180]u8, len: usize) void {
+    const typed = repo[0..len];
+    const chain = @import("chain.zig");
+    chain.setStage("downloading", typed);
+    const name = std.fs.path.stem(typed);
+    var dest_buf: [200]u8 = undefined;
+    const dest = std.fmt.bufPrint(&dest_buf, "coin-src/{s}", .{name}) catch return;
+    var clone = std.process.Child.init(&.{ "git", "clone", "--depth", "1", typed, dest }, std.heap.page_allocator);
+    const cloned = clone.spawnAndWait() catch {
+        chain.setStage("failed", "git did not start");
+        return;
+    };
+    if (!(cloned == .Exited and cloned.Exited == 0)) {
+        chain.setStage("failed", "clone failed");
+        return;
+    }
+    chain.setStage("compiling", dest);
+    var file = std.fs.cwd().createFile("coin.cfg", .{}) catch return;
+    file.writer().print("name={s}\nrepo={s}\npath={s}\n", .{ name, typed, dest }) catch {};
+    file.close();
+    var build = std.process.Child.init(&.{ "sh", "-c", "cd coin-src/* && (make -j2 || cmake -B build && cmake --build build -j2 || true)" }, std.heap.page_allocator);
+    _ = build.spawnAndWait() catch {};
+    chain.setStage("connecting", "looking for a node on 8332");
+    var rpc: [128]u8 = undefined;
+    const rpc_s = std.fmt.bufPrint(&rpc, "http://127.0.0.1:8332", .{}) catch return;
+    @memcpy(chain.source.rpc[0..rpc_s.len], rpc_s);
+    chain.source.rpc_len = rpc_s.len;
+    chain.setStage("ready", "cloned and built. height fills when the node answers");
+}
+
 fn fetchRepo() void {
     var repo: [180]u8 = undefined;
     const typed = textOf(repo_box, &repo);
     if (!std.mem.startsWith(u8, typed, "https://github.com/") and !std.mem.startsWith(u8, typed, "https://gitlab.com/")) {
-        return setText(summary, "Repo must be github.com or gitlab.com.");
+        return setText(summary, "Codebase must be github.com or gitlab.com.");
     }
-    const name = std.fs.path.stem(typed);
-    var dest_buf: [200]u8 = undefined;
-    const dest = std.fmt.bufPrint(&dest_buf, "coin-src/{s}", .{name}) catch return;
-    var proc = std.process.Child.init(&.{ "git", "clone", "--depth", "1", typed, dest }, std.heap.page_allocator);
-    const term = proc.spawnAndWait() catch return setText(summary, "git did not start");
-    if (term == .Exited and term.Exited == 0) {
-        var file = std.fs.cwd().createFile("coin.cfg", .{}) catch return;
-        defer file.close();
-        file.writer().print("name={s}\nrepo={s}\npath={s}\n", .{ name, typed, dest }) catch {};
-        setText(summary, "Coin cloned. The pool advertises it.");
-    } else setText(summary, "Clone failed.");
+    var held: [180]u8 = undefined;
+    @memcpy(held[0..typed.len], typed);
+    @import("chain.zig").setStage("downloading", typed);
+    setText(summary, "Downloading the codebase.");
+    const thread = std.Thread.spawn(.{}, fetchWorker, .{ held, typed.len }) catch return;
+    thread.detach();
 }
 
 fn settingsProc(window: HWND, msg: u32, wp: WPARAM, lp: LPARAM) callconv(WINAPI) LRESULT {
