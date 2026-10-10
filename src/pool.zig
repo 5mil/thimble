@@ -81,7 +81,9 @@ pub fn reportText(alloc: std.mem.Allocator) ![]u8 {
     for (modules.mods[0..modules.count]) |m| {
         if (!m.on) continue;
         var already = false;
-        for (seen[0..seen_n]) |p| if (p == m.port) already = true;
+        for (seen[0..seen_n]) |p| {
+            if (p == m.port) already = true;
+        }
         if (already) continue;
         if (seen_n < seen.len) {
             seen[seen_n] = m.port;

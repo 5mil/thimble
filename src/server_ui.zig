@@ -163,7 +163,7 @@ fn loadModules() void {
         var twin = false;
         for (modules[0..module_count]) |*old| {
             if (old.port == m.port and std.mem.eql(u8, old.name[0..old.name_len], m.name[0..m.name_len])) {
-                if (m.source_len > 0) old.* = m;
+                if (m.source_len > 0) old.* = m.*;
                 twin = true;
                 break;
             }
