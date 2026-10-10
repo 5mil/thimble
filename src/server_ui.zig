@@ -275,24 +275,53 @@ fn toggleModule() void {
     showReport();
 }
 
+fn which(cmd: []const u8) bool {
+    var proc = std.process.Child.init(&.{ "where", cmd }, std.heap.page_allocator);
+    proc.stdout_behavior = .Ignore;
+    proc.stderr_behavior = .Ignore;
+    const term = proc.spawnAndWait() catch return false;
+    return term == .Exited and term.Exited == 0;
+}
+
+fn canReach(host: []const u8) bool {
+    var proc = std.process.Child.init(&.{ "ping", "-n", "1", "-w", "2000", host }, std.heap.page_allocator);
+    proc.stdout_behavior = .Ignore;
+    proc.stderr_behavior = .Ignore;
+    const term = proc.spawnAndWait() catch return false;
+    return term == .Exited and term.Exited == 0;
+}
+
 fn fetchWorker(repo: [180]u8, len: usize) void {
     const typed = repo[0..len];
     const chain = @import("chain.zig");
+    chain.setStage("checking", "looking for git");
+    if (!which("git")) {
+        chain.setStage("failed", "git is not installed or not on PATH");
+        return;
+    }
+    chain.setStage("checking", "can this machine reach github.com");
+    if (!canReach("github.com")) {
+        chain.setStage("failed", "no route to github.com. Check the network.");
+        return;
+    }
     chain.setStage("downloading", "git clone");
     const name = std.fs.path.stem(typed);
-    std.fs.cwd().makePath("coin-src") catch {};
+    std.fs.cwd().makePath("coin-src") catch {
+        chain.setStage("failed", "could not make coin-src");
+        return;
+    };
     var dest_buf: [200]u8 = undefined;
     const dest = std.fmt.bufPrint(&dest_buf, "coin-src/{s}", .{name}) catch return;
     std.fs.cwd().deleteTree(dest) catch {};
     var errlog = std.fs.cwd().createFile("clone.err", .{}) catch return;
-    var clone = std.process.Child.init(&.{ "git", "clone", "--depth", "1", typed, dest }, std.heap.page_allocator);
+    var clone = std.process.Child.init(&.{ "git", "clone", "--depth", "1", "--progress", typed, dest }, std.heap.page_allocator);
     clone.stderr_behavior = .Pipe;
     clone.spawn() catch {
         errlog.close();
-        chain.setStage("failed", "git not found. Install git and try again.");
+        chain.setStage("failed", "git would not start");
         return;
     };
-    var err_buf: [400]u8 = undefined;
+    var err_buf: [600]u8 = undefined;
     const err_n = if (clone.stderr) |s| s.read(&err_buf) catch 0 else 0;
     errlog.writeAll(err_buf[0..err_n]) catch {};
     errlog.close();
@@ -301,8 +330,11 @@ fn fetchWorker(repo: [180]u8, len: usize) void {
         return;
     };
     if (!(term == .Exited and term.Exited == 0)) {
-        const msg = if (err_n > 0) err_buf[0..@min(err_n, 80)] else "clone failed, see clone.err";
-        chain.setStage("failed", msg);
+        var why: [100]u8 = undefined;
+        const slice = if (err_n > 0) err_buf[0..@min(err_n, 90)] else "unknown, see clone.err";
+        const n = @min(slice.len, why.len);
+        @memcpy(why[0..n], slice[0..n]);
+        chain.setStage("failed", why[0..n]);
         return;
     }
     chain.setStage("cloned", "starting the build");
