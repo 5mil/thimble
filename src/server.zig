@@ -537,5 +537,8 @@ pub fn main() !void {
     std.debug.print("Pool  3333 sha256d  3334 scrypt  3335 ethash  3336 kawpow  3337 randomx  3338 yescrypt\n", .{});
     std.debug.print("Admin http://127.0.0.1:8080/admin   set AOL_ADMIN first\n", .{});
     std.debug.print("Members aol.db   party party.db   coin coin.cfg\n", .{});
-    console();
+    if (comptime @import("builtin").os.tag == .windows) {
+        @import("server_ui.zig").open();
+    } else console();
+}
 }
