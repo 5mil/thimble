@@ -1,110 +1,258 @@
 # thimble
 
-A Windows window that thinks it is 1999, a host that keeps the screen names, and a pool that will take a coin repo if you paste one.
+A window that thinks it is 1999, a host that keeps the screen names, and a pool that will take a chain source if you give it one.
 
-Show a friend the page: https://5mil.github.io/thimble/
+The page: https://5mil.github.io/thimble/  
+The host: https://github.com/5mil/thimble/tree/lobby
 
-That page dials, plays the modem, and talks back. It does not share a room with you. The shared host is this branch.
+The page dials. The host is the thing you leave running.
 
-## Modules, house, merge, payout
+## What you are running
 
-`pools.cfg` is the module list. Each line that is on gets its own listener. Two modules on means two ports, two jobs, two totals. Turning one off leaves the others.
+| Program | Where | What it does |
+|---|---|---|
+| `aol-server` / `AmericaOnlineServer.exe` | The machine you leave on | Sign-on on 8080. Pool on 3333–3338. Report window on Windows. |
+| `AmericaOnline.exe` | A Windows machine | Sign up, sign on, chat, mail, Start rig. |
+| `aol-miner` | Linux or Windows | A worker that connects to a pool port. |
+| Browser | Anywhere | http://HOST:8080 for sign-on. http://HOST:8080/admin for a coin fetch. |
 
-House is a worker named `house`. It only runs if the settings window saved `#house 1` and a chain source is connected. The bonus percent on the module is taken from house shares, not printed.
+Files the host writes next to itself: `aol.db` (members, mail), `party.db` (shares), `pools.cfg` (modules), `payouts.cfg` (balances), `coin.cfg` (last fetched coin).
 
-Merge is stored per module (`Litecoin` can say `Dogecoin`). The report shows the child. A second chain source for that child is the next wire. Until then the share is still the parent’s share.
+## Get Zig
 
-`payouts.cfg` is the ledger: screen name and balance. A send happens only after a balance clears 1000. The file is the record. It is not a broadcast.
+Zig 0.14.1. https://ziglang.org/download/
 
-Set one of these before the host starts. The report’s first line is the chain.
+Check with `zig version`.
 
-- `AOL_UPSTREAM=host:3333` — the host mirrors a real pool. Jobs are that pool’s jobs. Shares are forwarded. No chain download.
-- `AOL_RPC=http://user:pass@127.0.0.1:8332` — the host asks a node. State is `syncing`, `headers`, `pruned`, or `ready`. Height, peers, and IBD are on the line. A pruned node (`bitcoind -prune=550`) is enough.
-- Neither set — the line says `no node`.
+## Windows
 
-`AOL_WALLET` is the coinbase address used when a template is built. Balances on the report are share-difficulty units, not yet a payout run.
+### Server
 
-The page and the window stay sardonic. The host underneath is the thing you leave running.
+Download `AmericaOnlineServer.exe` from the `lobby` branch, or build it.
 
-Saves of members and mail go to `aol.db.tmp` and replace `aol.db` only after the write finishes. Party shares do the same with `party.db`. A crash mid-save does not leave a half file as the only copy.
-
-Sessions die after seven days without use. `/api/health` returns users, sessions, messages, accepted shares, and worker count. Set `AOL_ADMIN` before any coin fetch. Repos stay limited to GitHub and GitLab HTTPS.
-
-If `pools.cfg` exists, only modules marked on open a stratum port. With no file, or with every module off, all six ports open. The report window and the settings window are separate. Settings reload from `pools.cfg` on the next start.
-
-`AmericaOnlineServer.exe` is the console. It starts the sign-on host on 8080 and the pool on 3333 through 3338. The menu in that window is `1` host, `2` pool status, `3` fetch a coin repo, `4` quit. Set `AOL_ADMIN` before you use admin or fetch.
-
-`AmericaOnline.exe` is the window. Sign up, sign on, send in a room, read mail, and press Start rig. The rig box is the worker name, `Kitchen.rig1`. The port box is 8080 for sign-on and 3333 for the rig.
-
-Both files are in this branch. Rebuild them with:
+Build, from a checkout, with Zig on PATH:
 
 ```
-zig build-exe src/server.zig -target x86_64-windows-gnu -OReleaseSafe -lc -femit-bin=AmericaOnlineServer.exe
+zig build-exe src/server.zig -target x86_64-windows-gnu -OReleaseSafe -lc -luser32 -lgdi32 --subsystem windows -femit-bin=AmericaOnlineServer.exe
+```
+
+Set the variables, then start it. In `cmd`:
+
+```
+set AOL_ADMIN=choose-eight-or-more
+set AOL_UPSTREAM=pool.example.com:3333
+AmericaOnlineServer.exe
+```
+
+In PowerShell:
+
+```
+$env:AOL_ADMIN = "choose-eight-or-more"
+$env:AOL_UPSTREAM = "pool.example.com:3333"
+.\AmericaOnlineServer.exe
+```
+
+The window that opens is the report. Pool → Settings is the module list. Settings write `pools.cfg` and reload on the next start.
+
+Firewall: allow inbound TCP 8080 (sign-on) and 3333–3338 (pool) if friends connect from other machines.
+
+### Client
+
+```
 zig build-exe src/client.zig -target x86_64-windows-gnu -OReleaseSafe -lwinhttp --subsystem windows -femit-bin=AmericaOnline.exe
 ```
 
+Run `AmericaOnline.exe`. Host box is the server machine (`127.0.0.1` if it is this PC). Port box is `8080`. Sign Up once, then Sign On. Start rig uses the worker name (`Kitchen.rig1`) and talks to the pool port for that coin (3333 for Bitcoin).
+
+## Linux
+
+One set of commands. The package line is the only part that changes.
+
+### Debian, Ubuntu, Mint, Pop
+
 ```
-zig build run
+sudo apt update
+sudo apt install -y git build-essential
 ```
 
-Or:
+Install Zig from ziglang.org (the distro package is often too old). Then:
 
 ```
-zig build-exe src/server.zig -OReleaseSafe -femit-bin=aol-server
+git clone https://github.com/5mil/thimble.git
+cd thimble
+git checkout lobby
+zig build-exe src/server.zig -OReleaseSafe -lc -femit-bin=aol-server
+export AOL_ADMIN=choose-eight-or-more
+export AOL_UPSTREAM=pool.example.com:3333
 ./aol-server
 ```
 
-Port 8080. Members stay in `aol.db`. Passwords are a PBKDF2 hash. Open http://127.0.0.1:8080 to sign up. Screen names are 3 to 16 letters and numbers, starting with a letter.
+Open http://127.0.0.1:8080
 
-`./aol-server --selftest` checks signup, a lobby line, and mail.
-
-## Windows window
-
-`AmericaOnline.exe` is built from `src/client.zig`. Host `127.0.0.1`, port `8080`, on the same machine. Sign Up once, then Sign On. Send writes the room. You've Got Mail reads the inbox.
+Leave it up with systemd. `/etc/systemd/system/thimble.service`:
 
 ```
-zig build-exe src/client.zig -target x86_64-windows-gnu -OReleaseSafe -lwinhttp --subsystem windows -femit-bin=AmericaOnline.exe
+[Unit]
+Description=thimble host
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/thimble
+Environment=AOL_ADMIN=choose-eight-or-more
+Environment=AOL_UPSTREAM=pool.example.com:3333
+ExecStart=/opt/thimble/aol-server
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
 ```
 
-The page and the program use the same accounts on that host.
+```
+sudo systemctl enable --now thimble
+```
 
-## Pool
-
-The host speaks Stratum: `mining.subscribe`, `mining.authorize`, `mining.notify`, `mining.submit`. Worker name is `screen.rig`. Put `asic` or `gpu` in the password or the device flag.
-
-- 3333 sha256d
-- 3334 scrypt
-- 3335 ethash
-- 3336 kawpow
-- 3337 randomx
-- 3338 yescrypt
-
-`GET /api/pool` lists workers, algorithm, device, and the coin name.
+### Fedora, RHEL, CentOS Stream
 
 ```
-zig build-exe src/miner.zig -OReleaseSafe -femit-bin=aol-miner
-./aol-miner --host 127.0.0.1 --port 3335 --worker SteveCaseFan.rig1 --threads 4 --device gpu
+sudo dnf install -y git gcc
+```
+
+Zig from ziglang.org. Same clone, build, and `export` lines as Debian. systemd unit is the same.
+
+### Arch, Manjaro, Endeavour
+
+```
+sudo pacman -S --needed git base-devel zig
+```
+
+Arch’s `zig` is often current. If `zig version` is 0.14 or newer, use it. Same clone and build as Debian. systemd unit is the same.
+
+### openSUSE
+
+```
+sudo zypper install -y git gcc
+```
+
+Zig from ziglang.org. Same clone and build.
+
+### Alpine
+
+```
+apk add git build-base
+```
+
+Zig from ziglang.org. Same clone and build. OpenRC instead of systemd: a line in `/etc/init.d` that runs `./aol-server` with the exports.
+
+### Nix
+
+With Nix on any distro:
+
+```
+nix-shell -p zig git
+git clone https://github.com/5mil/thimble.git
+cd thimble && git checkout lobby
+zig build-exe src/server.zig -OReleaseSafe -lc -femit-bin=aol-server
+export AOL_ADMIN=choose-eight-or-more
+./aol-server
+```
+
+NixOS, in `configuration.nix` or a module:
+
+```
+environment.systemPackages = with pkgs; [ zig git ];
+```
+
+Or a shell app:
+
+```
+pkgs.writeShellScriptBin "thimble" ''
+  export AOL_ADMIN=''${AOL_ADMIN:-choose-eight-or-more}
+  export AOL_UPSTREAM=''${AOL_UPSTREAM:-}
+  exec /var/lib/thimble/aol-server
+''
+```
+
+Build the binary once with `zig build-exe` and point the service at it. Nix does not need to package the Zig sources for the host to run.
+
+## Client on Linux
+
+There is no native Linux window. Use the browser.
+
+http://SERVER:8080
+
+Sign up, sign on, pick a room, send. Mail is on the same host.
+
+A Linux worker is `aol-miner`:
+
+```
+zig build-exe src/miner.zig -OReleaseSafe -lc -femit-bin=aol-miner
+./aol-miner --host 127.0.0.1 --port 3333 --worker Kitchen.rig1 --threads 4 --device cpu
 ```
 
 Leave `--threads` and `--device` off and it counts CPUs and looks for `/dev/nvidia0`, `/dev/dri/card0`, and `/dev/ttyUSB0`.
 
-## Coin
+## Configuration
 
-Admin page: http://127.0.0.1:8080/admin
+Set these in the environment before the host starts.
 
-Set `AOL_ADMIN` to at least 8 characters before you start the host. There is no default token. The repo must be `https://github.com/` or `https://gitlab.com/`, with no spaces and no `..`. The host clones it into `coin-src/` and writes `coin.cfg`. The pool advertises that name. It does not compile the validator. That command belongs to the coin.
+| Variable | Required | Meaning |
+|---|---|---|
+| `AOL_ADMIN` | For coin fetch | 8 or more characters. No default. |
+| `AOL_UPSTREAM` | One of these two | `host:3333`. Jobs come from that pool. Shares are forwarded. No chain download. |
+| `AOL_RPC` | One of these two | `http://user:pass@127.0.0.1:8332`. Asks a node. Pruned (`bitcoind -prune=550`) is enough. |
+| `AOL_WALLET` | For a template | Coinbase address. |
 
-The same fetch from a shell:
+Neither upstream nor RPC: the report says `no node`.
+
+`pools.cfg`, written by the settings window or by hand:
 
 ```
-zig build-exe src/coin.zig -OReleaseSafe -femit-bin=aol-coin
-./aol-coin list
-./aol-coin fetch orthal
-./aol-coin fetch https://github.com/5mil/agave-hybrid.git
+Bitcoin	sha256d	3333	1	Namecoin	5
+Litecoin	scrypt	3334	1	Dogecoin	0
+#house	1
+#data	all
 ```
 
-Known names: orthal, agave-hybrid.
+Columns: name, algorithm, port, on (`1`/`0`), merge child, bonus percent. `#house 1` starts the house worker when a chain source is connected. Two lines with `1` are two listeners.
 
-## Party
+Pool ports:
 
-The group is the text before the dot in the worker name. `Kitchen.rig1` and `Kitchen.asic` share one party. A name with no dot joins `lobby`. Shares are written to `party.db` and loaded again on the next start, so a restart does not clear the night. `/api/pool` lists each party total next to the workers. Reconnecting the same worker updates the device and does not open a second seat.
+| Port | Algorithm |
+|---|---|
+| 3333 | sha256d |
+| 3334 | scrypt |
+| 3335 | ethash |
+| 3336 | kawpow |
+| 3337 | randomx |
+| 3338 | yescrypt |
+
+Worker name is `screen.rig`. The text before the dot is the party. `asic` or `gpu` in the password marks the device.
+
+## Check it
+
+```
+./aol-server --selftest
+```
+
+Signup, a lobby line, and mail. Then:
+
+```
+curl -s http://127.0.0.1:8080/api/health
+curl -s http://127.0.0.1:8080/api/pool
+```
+
+Health returns users, sessions, messages, accepted shares, workers. The report window on Windows shows the chain line and one line per module.
+
+## Show a friend
+
+On the host machine, tunnel 8080 (and 3333 if they will mine):
+
+```
+cloudflared tunnel --url http://127.0.0.1:8080
+```
+
+Or `ngrok http 8080`. Give them the URL. They sign up in a browser. A miner points `--host` at that name and `--port` at the pool port you also exposed.
+
+## Coin fetch
+
+http://127.0.0.1:8080/admin with `AOL_ADMIN` set. Repo must be `https://github.com/` or `https://gitlab.com/`. The host clones into `coin-src/` and writes `coin.cfg`. It does not compile the validator.
