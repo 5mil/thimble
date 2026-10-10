@@ -541,4 +541,3 @@ pub fn main() !void {
         @import("server_ui.zig").open();
     } else console();
 }
-}
