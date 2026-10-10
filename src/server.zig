@@ -226,7 +226,8 @@ fn handle(store: *Store, alloc: std.mem.Allocator, method: []const u8, path: []c
     if (std.mem.eql(u8, path, "/api/admin/coin")) {
         const token = formOrJson(body, "token", alloc) catch "";
         const repo = formOrJson(body, "repo", alloc) catch "";
-        const expected = std.posix.getenv("AOL_ADMIN") orelse "";
+        const expected = std.process.getEnvVarOwned(alloc, "AOL_ADMIN") catch "";
+        defer if (expected.len > 0) alloc.free(expected);
         if (expected.len < 8 or !fixedEqual(token, expected) or !safeRepo(repo)) {
             const payload = "{\"ok\":false,\"error\":\"Admin token missing or repo not allowed.\"}";
             return std.fmt.allocPrint(alloc, "HTTP/1.1 403 OK\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n{s}", .{ payload.len, payload });
@@ -471,8 +472,58 @@ fn selftest() !void {
     std.debug.print("SELF-TEST OK\n", .{});
 }
 
+fn serveLoop(store: *Store) void {
+    const addr = std.net.Address.parseIp4("0.0.0.0", 8080) catch return;
+    var server = addr.listen(.{ .reuse_address = true }) catch return;
+    while (true) {
+        const conn = server.accept() catch continue;
+        const thread = std.Thread.spawn(.{}, serveClient, .{ store, conn }) catch continue;
+        thread.detach();
+    }
+}
+
+fn console() void {
+    const in = std.io.getStdIn();
+    var buf: [160]u8 = undefined;
+    while (true) {
+        std.debug.print("\n1 start   2 pool status   3 fetch coin   4 quit\n> ", .{});
+        const n = in.read(&buf) catch return;
+        if (n == 0) return;
+        const line = std.mem.trim(u8, buf[0..n], " \r\n");
+        if (line.len == 0 or line[0] == '1') {
+            std.debug.print("host is already on 8080. pool is on 3333-3338.\n", .{});
+        } else if (line[0] == '2') {
+            std.debug.print("open http://127.0.0.1:8080/api/pool\n", .{});
+        } else if (line[0] == '3') {
+            std.debug.print("repo: ", .{});
+            const m = in.read(&buf) catch return;
+            const repo = std.mem.trim(u8, buf[0..m], " \r\n");
+            if (!safeRepo(repo)) {
+                std.debug.print("refused. https://github.com/ or https://gitlab.com/ only.\n", .{});
+            } else {
+                const name = std.fs.path.stem(repo);
+                var dest_buf: [180]u8 = undefined;
+                const dest = std.fmt.bufPrint(&dest_buf, "coin-src/{s}", .{name}) catch continue;
+                var child = std.process.Child.init(&.{ "git", "clone", "--depth", "1", repo, dest }, std.heap.page_allocator);
+                const term = child.spawnAndWait() catch {
+                    std.debug.print("git did not start\n", .{});
+                    continue;
+                };
+                if (term == .Exited and term.Exited == 0) {
+                    var file = std.fs.cwd().createFile("coin.cfg", .{}) catch continue;
+                    defer file.close();
+                    file.writer().print("name={s}\nrepo={s}\npath={s}\n", .{ name, repo, dest }) catch {};
+                    std.debug.print("pool now advertises {s}\n", .{name});
+                } else std.debug.print("clone failed\n", .{});
+            }
+        } else if (line[0] == '4') {
+            std.process.exit(0);
+        }
+    }
+}
+
 pub fn main() !void {
-    var args = std.process.args();
+    var args = try std.process.argsWithAllocator(std.heap.page_allocator);
     _ = args.skip();
     if (args.next()) |arg| if (std.mem.eql(u8, arg, "--selftest")) return selftest();
     var store = Store.init(std.heap.page_allocator, "aol.db");
@@ -480,12 +531,11 @@ pub fn main() !void {
     pool.pool = pool.Pool.init(std.heap.page_allocator);
     const pool_thread = try std.Thread.spawn(.{}, pool.start, .{});
     pool_thread.detach();
-    const addr = try std.net.Address.parseIp4("0.0.0.0", 8080);
-    var server = try addr.listen(.{ .reuse_address = true });
-    std.debug.print("America Online server on http://0.0.0.0:8080\nDatabase: aol.db\n", .{});
-    while (true) {
-        const conn = server.accept() catch continue;
-        const thread = try std.Thread.spawn(.{}, serveClient, .{ &store, conn });
-        thread.detach();
-    }
+    const http_thread = try std.Thread.spawn(.{}, serveLoop, .{&store});
+    http_thread.detach();
+    std.debug.print("America Online server  http://0.0.0.0:8080\n", .{});
+    std.debug.print("Pool  3333 sha256d  3334 scrypt  3335 ethash  3336 kawpow  3337 randomx  3338 yescrypt\n", .{});
+    std.debug.print("Admin http://127.0.0.1:8080/admin   set AOL_ADMIN first\n", .{});
+    std.debug.print("Members aol.db   party party.db   coin coin.cfg\n", .{});
+    console();
 }

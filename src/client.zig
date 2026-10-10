@@ -91,6 +91,8 @@ var input_box: HWND = undefined;
 var send_btn: HWND = undefined;
 var rooms_box: HWND = undefined;
 var mail_btn: HWND = undefined;
+var mine_btn: HWND = undefined;
+var worker_box: HWND = undefined;
 var status_box: HWND = undefined;
 var screen_name: [32]u8 = undefined;
 var token: [80]u8 = undefined;
@@ -258,6 +260,8 @@ fn showChat(on: bool) void {
     _ = ShowWindow(send_btn, chat_show);
     _ = ShowWindow(rooms_box, chat_show);
     _ = ShowWindow(mail_btn, chat_show);
+    _ = ShowWindow(mine_btn, chat_show);
+    _ = ShowWindow(worker_box, chat_show);
     _ = SetWindowTextA(hwnd, if (on) "America Online — People Connection" else "America Online — Sign On");
 }
 
@@ -271,6 +275,29 @@ fn sendChat() void {
     const body = std.fmt.bufPrint(&body_buf, "{{\"room\":\"{s}\",\"text\":\"{s}\"}}", .{ rooms[room_i], text }) catch return;
     var raw: [200]u8 = undefined;
     _ = http("POST", "/api/messages", body, std.mem.sliceTo(&token, 0), &raw);
+}
+
+fn startRig() void {
+    var worker_raw: [64]u8 = undefined;
+    const worker = textOf(worker_box, &worker_raw);
+    var host_raw: [80]u8 = undefined;
+    var port_raw: [8]u8 = undefined;
+    const host = textOf(host_box, &host_raw);
+    const port = textOf(port_box, &port_raw);
+    @memset(&host_text, 0);
+    @memcpy(host_text[0..host.len], host);
+    port_n = std.fmt.parseInt(u16, port, 10) catch 3333;
+    const addr = std.net.Address.parseIp4(std.mem.sliceTo(&host_text, 0), port_n) catch return;
+    const stream = std.net.tcpConnectToAddress(addr) catch {
+        _ = MessageBoxA(hwnd, "The pool port did not answer. Start the server EXE.", "America Online", 0);
+        return;
+    };
+    var login: [220]u8 = undefined;
+    const sub = std.fmt.bufPrint(&login, "{{\"id\":1,\"method\":\"mining.subscribe\",\"params\":[\"AmericaOnline\"]}}\n", .{}) catch return;
+    _ = stream.writeAll(sub) catch return;
+    const auth = std.fmt.bufPrint(&login, "{{\"id\":2,\"method\":\"mining.authorize\",\"params\":[\"{s}\",\"gpu\"]}}\n", .{worker}) catch return;
+    _ = stream.writeAll(auth) catch return;
+    addLine("Rig authorized on the pool.");
 }
 
 fn readMail() void {
@@ -309,7 +336,9 @@ fn layout() void {
     _ = MoveWindow(input_box, 176, h - 76, w - 280, 22, 1);
     _ = MoveWindow(send_btn, w - 96, h - 78, 80, 26, 1);
     _ = MoveWindow(mail_btn, 8, h - 48, 160, 24, 1);
-    _ = MoveWindow(status_box, 176, h - 46, w - 190, 18, 1);
+    _ = MoveWindow(worker_box, 176, h - 46, 140, 18, 1);
+    _ = MoveWindow(mine_btn, 324, h - 48, 90, 24, 1);
+    _ = MoveWindow(status_box, 420, h - 46, w - 430, 18, 1);
 }
 
 fn child(class: [*:0]const u8, title: [*:0]const u8, style: u32, id: usize) HWND {
@@ -333,7 +362,9 @@ fn wndProc(window: HWND, msg: u32, wp: WPARAM, lp: LPARAM) callconv(WINAPI) LRES
             input_box = child("EDIT", "", WS_CHILD | WS_BORDER | ES_AUTOHSCROLL, 11);
             send_btn = child("BUTTON", "Send", WS_CHILD, 12);
             mail_btn = child("BUTTON", "You've Got Mail", WS_CHILD, 13);
-            status_box = child("STATIC", "Offline. Run the Zig host, then sign up.", WS_CHILD | WS_VISIBLE, 14);
+            mine_btn = child("BUTTON", "Start rig", WS_CHILD, 15);
+            worker_box = child("EDIT", "Kitchen.rig1", WS_CHILD | WS_BORDER, 16);
+            status_box = child("STATIC", "Offline. Run the server EXE, then sign up.", WS_CHILD | WS_VISIBLE, 14);
             for (rooms) |room| {
                 _ = SendMessageA(room_box, CB_ADDSTRING, 0, @bitCast(@intFromPtr(room.ptr)));
                 _ = SendMessageA(rooms_box, LB_ADDSTRING, 0, @bitCast(@intFromPtr(room.ptr)));
@@ -352,6 +383,7 @@ fn wndProc(window: HWND, msg: u32, wp: WPARAM, lp: LPARAM) callconv(WINAPI) LRES
             if (id == 8) sign("login");
             if (id == 12) sendChat();
             if (id == 13 and online) readMail();
+            if (id == 15 and online) startRig();
             if ((wp >> 16) == 2 and id == 9 and online) {
                 const picked = SendMessageA(rooms_box, LB_GETCURSEL, 0, 0);
                 if (picked >= 0 and picked < 5) {

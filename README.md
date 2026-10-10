@@ -6,7 +6,18 @@ Show a friend the page: https://5mil.github.io/thimble/
 
 That page dials, plays the modem, and talks back. It does not share a room with you. The shared host is this branch.
 
-## Host
+## The two programs
+
+`AmericaOnlineServer.exe` is the console. It starts the sign-on host on 8080 and the pool on 3333 through 3338. The menu in that window is `1` host, `2` pool status, `3` fetch a coin repo, `4` quit. Set `AOL_ADMIN` before you use admin or fetch.
+
+`AmericaOnline.exe` is the window. Sign up, sign on, send in a room, read mail, and press Start rig. The rig box is the worker name, `Kitchen.rig1`. The port box is 8080 for sign-on and 3333 for the rig.
+
+Both files are in this branch. Rebuild them with:
+
+```
+zig build-exe src/server.zig -target x86_64-windows-gnu -OReleaseSafe -lc -femit-bin=AmericaOnlineServer.exe
+zig build-exe src/client.zig -target x86_64-windows-gnu -OReleaseSafe -lwinhttp --subsystem windows -femit-bin=AmericaOnline.exe
+```
 
 ```
 zig build run
