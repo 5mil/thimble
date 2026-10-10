@@ -79,6 +79,7 @@ var bonus_box: HWND = undefined;
 var data_box: HWND = undefined;
 var house_check: HWND = undefined;
 var list_box: HWND = undefined;
+var report_box: HWND = undefined;
 var log_box: HWND = undefined;
 var brush: HBRUSH = undefined;
 
@@ -179,7 +180,22 @@ fn toggleModule() void {
     note(if (modules[@intCast(i)].on) "That pool is on." else "That pool is off. The others keep running.");
 }
 
-fn fetchRepo() void {
+fn showReport() void {
+    const text = @import("pool.zig").reportText(std.heap.page_allocator) catch return note("report failed");
+    _ = SendMessageA(report_box, LB_RESETCONTENT, 0, 0);
+    var held: [24][160]u8 = undefined;
+    var nline: usize = 0;
+    var it = std.mem.splitScalar(u8, text, '\n');
+    while (it.next()) |line| {
+        if (line.len == 0 or nline >= held.len) continue;
+        const n = @min(line.len, held[nline].len - 1);
+        @memcpy(held[nline][0..n], line[0..n]);
+        held[nline][n] = 0;
+        _ = SendMessageA(report_box, LB_ADDSTRING, 0, @bitCast(@intFromPtr(&held[nline])));
+        nline += 1;
+    }
+    note("Report is live. Shares, workers, blocks, and the line.");
+}
     var repo: [180]u8 = undefined;
     const typed = textOf(repo_box, &repo);
     if (!std.mem.startsWith(u8, typed, "https://github.com/") and !std.mem.startsWith(u8, typed, "https://gitlab.com/")) {
@@ -223,7 +239,9 @@ fn wnd(window: HWND, msg: u32, wp: WPARAM, lp: LPARAM) callconv(WINAPI) LRESULT 
             house_check = child(window, "BUTTON", "Mine to this pool (house rig)", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 16, 138, 220, 20, 17);
             _ = child(window, "BUTTON", "Add module", WS_CHILD | WS_VISIBLE, 250, 134, 110, 26, 18);
             _ = child(window, "BUTTON", "Toggle selected", WS_CHILD | WS_VISIBLE, 368, 134, 120, 26, 19);
-            list_box = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 16, 168, 548, 110, 20);
+            _ = child(window, "BUTTON", "Report", WS_CHILD | WS_VISIBLE, 496, 134, 68, 26, 21);
+            list_box = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 16, 168, 548, 70, 20);
+            report_box = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 16, 244, 548, 90, 22);
             log_box = child(window, "STATIC", "Recommended: Bitcoin on 3333. Litecoin merges Dogecoin. House shares become the bonus.", WS_CHILD | WS_VISIBLE | WS_BORDER, 16, 286, 548, 36, 4);
             _ = SetFocus(repo_box);
             return 0;
@@ -239,6 +257,7 @@ fn wnd(window: HWND, msg: u32, wp: WPARAM, lp: LPARAM) callconv(WINAPI) LRESULT 
             if (id == 6) fetchRepo();
             if (id == 18) addModule(window);
             if (id == 19) toggleModule();
+            if (id == 21) showReport();
             return 0;
         },
         WM_DESTROY => {

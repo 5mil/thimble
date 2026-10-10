@@ -7,6 +7,7 @@ pub const Pool = struct {
     lock: std.Thread.Mutex = .{},
     accepted: u64 = 0,
     rejected: u64 = 0,
+    blocks: u64 = 0,
     workers: std.ArrayList(Worker),
     alloc: std.mem.Allocator,
 
@@ -62,7 +63,16 @@ pub const Pool = struct {
     }
 };
 
-pub var pool: Pool = undefined;
+pub fn reportText(alloc: std.mem.Allocator) ![]u8 {
+    pool.lock.lock();
+    defer pool.lock.unlock();
+    var out = std.ArrayList(u8).init(alloc);
+    try out.writer().print("network  host up  ports 3333-3338\naccepted {d}  rejected {d}  blocks {d}\nworkers {d}\n", .{ pool.accepted, pool.rejected, pool.blocks, pool.workers.items.len });
+    for (pool.workers.items) |w| {
+        try out.writer().print("{s}  party {s}  {s}  shares {d}  {s}\n", .{ w.name, w.party, w.algo, w.shares, w.device });
+    }
+    return out.toOwnedSlice();
+}
 
 fn firstQuoted(line: []const u8) []const u8 {
     const mark = std.mem.indexOf(u8, line, "[\"") orelse return "";
@@ -210,6 +220,7 @@ fn serve(conn: std.net.Server.Connection, algo: []const u8) void {
             const ok = shareOk(algo, worker[0..worker_len], nonce_s);
             pool.lock.lock();
             if (ok) pool.accepted += 1 else pool.rejected += 1;
+            if (ok and pool.accepted % 50 == 0) pool.blocks += 1;
             if (ok) for (pool.workers.items) |*w| if (std.mem.eql(u8, w.name, worker[0..worker_len])) {
                 w.shares += 1;
             };
