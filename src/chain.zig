@@ -62,9 +62,31 @@ pub fn setStage(stage: []const u8, detail: []const u8) void {
     build_detail_len = d;
 }
 
+pub fn progress() u8 {
+    if (build_stage_len == 0) return 0;
+    const s = build_stage[0..build_stage_len];
+    if (std.mem.eql(u8, s, "downloading")) return 15;
+    if (std.mem.eql(u8, s, "cloned")) return 30;
+    if (std.mem.eql(u8, s, "compiling")) return 55;
+    if (std.mem.eql(u8, s, "compiled")) return 80;
+    if (std.mem.eql(u8, s, "connecting")) return 90;
+    if (std.mem.eql(u8, s, "ready")) return 100;
+    if (std.mem.eql(u8, s, "failed")) return 0;
+    return 10;
+}
+
+fn bar(pct: u8) [20]u8 {
+    var out: [20]u8 = [_]u8{'.'} ** 20;
+    const filled = @min(@as(usize, 20), @as(usize, pct) * 20 / 100);
+    for (out[0..filled]) |*c| c.* = '#';
+    return out;
+}
+
 pub fn stageLine(buf: []u8) []u8 {
     if (build_stage_len == 0) return std.fmt.bufPrint(buf, "codebase  none", .{}) catch buf[0..0];
-    return std.fmt.bufPrint(buf, "codebase  {s}  {s}", .{ build_stage[0..build_stage_len], if (build_detail_len > 0) build_detail[0..build_detail_len] else "" }) catch buf[0..0];
+    const pct = progress();
+    const mark = bar(pct);
+    return std.fmt.bufPrint(buf, "{d}% [{s}]  {s}  {s}", .{ pct, mark, build_stage[0..build_stage_len], if (build_detail_len > 0) build_detail[0..build_detail_len] else "" }) catch buf[0..0];
 }
 
 pub fn line(buf: []u8) []u8 {
