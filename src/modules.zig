@@ -35,11 +35,11 @@ pub fn load() void {
     var it = std.mem.splitScalar(u8, raw, '\n');
     while (it.next()) |row| {
         if (row.len < 2) continue;
-        if (std.mem.startsWith(u8, row, "#house")) {
-            house_on = std.mem.indexOf(u8, row, "1") != null;
+        if (row.len < 2 or row[0] == '#') {
+            if (std.mem.indexOf(u8, row, "house") != null) house_on = std.mem.indexOf(u8, row, "1") != null;
             continue;
         }
-        if (row[0] == '#') continue;
+        if (std.mem.startsWith(u8, row, "house") or std.mem.startsWith(u8, row, "data")) continue;
         if (count >= mods.len) continue;
         var parts = std.mem.splitScalar(u8, row, '\t');
         var m = &mods[count];

@@ -79,7 +79,7 @@ pub fn reportText(alloc: std.mem.Allocator) ![]u8 {
     try out.writer().print("{s}\n", .{chain.line(&chain_buf)});
     var mod_buf: [640]u8 = undefined;
     try out.appendSlice(modules.line(&mod_buf));
-    try out.writer().print("accepted {d}  rejected {d}  blocks {d}  house bonus units {d}\nworkers {d}\n", .{ pool.accepted, pool.rejected, pool.blocks, modules.bonusOf(3333) + modules.bonusOf(3334), pool.workers.items.len });
+    try out.writer().print("accepted {d}  rejected {d}  blocks {d}\nworkers {d}\n", .{ pool.accepted, pool.rejected, pool.blocks, pool.workers.items.len });
     for (pool.workers.items) |w| {
         try out.writer().print("{s}  party {s}  {s}  shares {d}  {s}\n", .{ w.name, w.party, w.algo, w.shares, w.device });
     }

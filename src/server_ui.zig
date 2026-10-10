@@ -135,14 +135,12 @@ fn loadModules() void {
     var it = std.mem.splitScalar(u8, raw, '\n');
     while (it.next()) |line| {
         if (line.len < 2) continue;
-        if (std.mem.startsWith(u8, line, "#house")) {
-            house_on = std.mem.indexOf(u8, line, "1") != null;
+        if (line.len < 2 or line[0] == '#') {
+            if (std.mem.indexOf(u8, line, "house") != null) house_on = std.mem.indexOf(u8, line, "1") != null;
+            if (std.mem.indexOf(u8, line, "data") != null) keep_all = std.mem.indexOf(u8, line, "totals") == null;
             continue;
         }
-        if (std.mem.startsWith(u8, line, "#data")) {
-            keep_all = std.mem.indexOf(u8, line, "totals") == null;
-            continue;
-        }
+        if (std.mem.startsWith(u8, line, "house") or std.mem.startsWith(u8, line, "data")) continue;
         if (module_count >= modules.len) continue;
         var parts = std.mem.splitScalar(u8, line, '\t');
         const name = parts.next() orelse continue;
@@ -185,17 +183,10 @@ fn showReport() void {
     const text = @import("pool.zig").reportText(std.heap.page_allocator) catch return;
     _ = SendMessageA(report_box, LB_RESETCONTENT, 0, 0);
     var head: [160]u8 = undefined;
-    const head_s = std.fmt.bufPrint(&head, "Pools {d} configured. House {s}. Data {s}.", .{ module_count, if (house_on) "mining" else "off", if (keep_all) "all shares" else "totals" }) catch return;
+    const head_s = std.fmt.bufPrint(&head, "{d} modules. House {s}. {s}.", .{ module_count, if (house_on) "on" else "off", if (keep_all) "all shares" else "totals" }) catch return;
     setText(summary, head_s);
-    var held: [24][160]u8 = undefined;
+    var held: [24][180]u8 = undefined;
     var nline: usize = 0;
-    for (modules[0..module_count]) |m| {
-        if (nline >= held.len) break;
-        const line = std.fmt.bufPrint(&held[nline], "POOL  {s}  {s}  port {d}  {s}  merge {s}", .{ m.name[0..m.name_len], m.algo[0..m.algo_len], m.port, if (m.on) "on" else "off", m.merge[0..m.merge_len] }) catch continue;
-        held[nline][line.len] = 0;
-        _ = SendMessageA(report_box, LB_ADDSTRING, 0, @bitCast(@intFromPtr(&held[nline])));
-        nline += 1;
-    }
     var it = std.mem.splitScalar(u8, text, '\n');
     while (it.next()) |line| {
         if (line.len == 0 or nline >= held.len) continue;
@@ -359,7 +350,7 @@ pub fn open() void {
     const inst = GetModuleHandleA(null);
     const main_class = WNDCLASSA{ .lpfnWndProc = mainProc, .hInstance = inst, .hbrBackground = brush, .lpszClassName = "AmericaOnlineHost" };
     _ = RegisterClassA(&main_class);
-    main_hwnd = CreateWindowExA(0, "AmericaOnlineHost", "America Online — Host", WS_OVERLAPPEDWINDOW, 60, 40, 600, 390, null, null, inst, null).?;
+    main_hwnd = CreateWindowExA(0, "AmericaOnlineHost", "America Online - Host", WS_OVERLAPPEDWINDOW, 60, 40, 640, 420, null, null, inst, null).?;
     const bar = CreateMenu();
     const pool_menu = CreatePopupMenu();
     _ = AppendMenuA(pool_menu, MF_STRING, ID_SETTINGS, "Settings...");
