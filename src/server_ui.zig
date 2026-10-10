@@ -198,6 +198,9 @@ fn showReport() void {
     var head: [240]u8 = undefined;
     const head_s = @import("modules.zig").sentence(&head);
     setText(summary, head_s);
+    var stage_buf: [180]u8 = undefined;
+    const stage = @import("chain.zig").stageLine(&stage_buf);
+    if (stage.len > 10) setText(action_line, stage);
     var held: [24][180]u8 = undefined;
     var nline: usize = 0;
     var it = std.mem.splitScalar(u8, text, '\n');
@@ -267,7 +270,7 @@ fn toggleModule() void {
 fn fetchWorker(repo: [180]u8, len: usize) void {
     const typed = repo[0..len];
     const chain = @import("chain.zig");
-    chain.setStage("downloading", typed);
+    chain.setStage("downloading", "git clone");
     const name = std.fs.path.stem(typed);
     var dest_buf: [200]u8 = undefined;
     const dest = std.fmt.bufPrint(&dest_buf, "coin-src/{s}", .{name}) catch return;
@@ -280,18 +283,37 @@ fn fetchWorker(repo: [180]u8, len: usize) void {
         chain.setStage("failed", "clone failed");
         return;
     }
-    chain.setStage("compiling", dest);
+    chain.setStage("cloned", "starting the build");
     var file = std.fs.cwd().createFile("coin.cfg", .{}) catch return;
     file.writer().print("name={s}\nrepo={s}\npath={s}\n", .{ name, typed, dest }) catch {};
     file.close();
-    var build = std.process.Child.init(&.{ "sh", "-c", "cd coin-src/* && (make -j2 || cmake -B build && cmake --build build -j2 || true)" }, std.heap.page_allocator);
-    _ = build.spawnAndWait() catch {};
-    chain.setStage("connecting", "looking for a node on 8332");
+    chain.setStage("compiling", "make or cmake, this can take a while");
+    var log = std.fs.cwd().createFile("build.log", .{}) catch return;
+    var build = std.process.Child.init(&.{ "sh", "-c", "cd coin-src/* && (make -j2 || cmake -B build && cmake --build build -j2) > ../build.log 2>&1 || true" }, std.heap.page_allocator);
+    build.stdout_behavior = .Ignore;
+    build.stderr_behavior = .Ignore;
+    const built = build.spawnAndWait() catch {
+        chain.setStage("compiling", "build tool not found, skipping to connect");
+        log.close();
+        return connectAfter();
+    };
+    log.close();
+    if (built == .Exited and built.Exited == 0) {
+        @import("chain.zig").setStage("compiled", "looking for the node");
+    } else {
+        @import("chain.zig").setStage("compiled", "build finished with errors, looking for a node anyway");
+    }
+    connectAfter();
+}
+
+fn connectAfter() void {
+    const chain = @import("chain.zig");
+    chain.setStage("connecting", "checking 127.0.0.1:8332");
     var rpc: [128]u8 = undefined;
     const rpc_s = std.fmt.bufPrint(&rpc, "http://127.0.0.1:8332", .{}) catch return;
     @memcpy(chain.source.rpc[0..rpc_s.len], rpc_s);
     chain.source.rpc_len = rpc_s.len;
-    chain.setStage("ready", "cloned and built. height fills when the node answers");
+    chain.setStage("ready", "pool is open. height fills when the node answers");
 }
 
 fn fillCoin(index: isize) void {
