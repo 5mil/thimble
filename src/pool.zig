@@ -74,7 +74,15 @@ pub fn reportText(alloc: std.mem.Allocator) ![]u8 {
     pool.lock.lock();
     defer pool.lock.unlock();
     var out = std.ArrayList(u8).init(alloc);
-    try out.writer().print("network  host up  ports 3333-3338\n", .{});
+    var ports_on: [48]u8 = undefined;
+    var pn: usize = 0;
+    for (modules.mods[0..modules.count]) |m| {
+        if (!m.on) continue;
+        const piece = std.fmt.bufPrint(ports_on[pn..], "{d} ", .{m.port}) catch break;
+        pn += piece.len;
+    }
+    if (pn == 0) pn = (std.fmt.bufPrint(&ports_on, "none", .{}) catch "none").len;
+    try out.writer().print("network  host up  open {s}\n", .{ports_on[0..pn]});
     var chain_buf: [160]u8 = undefined;
     try out.writer().print("{s}\n", .{chain.line(&chain_buf)});
     var mod_buf: [640]u8 = undefined;

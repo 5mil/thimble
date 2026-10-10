@@ -315,7 +315,7 @@ fn mainProc(window: HWND, msg: u32, wp: WPARAM, lp: LPARAM) callconv(WINAPI) LRE
         1 => {
             _ = child(window, "STATIC", "POOL REPORT", WS_CHILD | WS_VISIBLE, 16, 8, 200, 18, 1);
             summary = child(window, "STATIC", "No pools yet. Settings is in the menu.", WS_CHILD | WS_VISIBLE, 16, 28, 540, 18, 2);
-            report_box = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 16, 52, 548, 250, 22);
+            report_box = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 16, 52, 700, 320, 22);
             _ = child(window, "STATIC", "Chain source, shares, workers, blocks. Refreshes on its own.", WS_CHILD | WS_VISIBLE, 16, 308, 500, 16, 3);
             _ = SetTimer(window, 1, 4000, null);
             showReport();
@@ -350,7 +350,7 @@ pub fn open() void {
     const inst = GetModuleHandleA(null);
     const main_class = WNDCLASSA{ .lpfnWndProc = mainProc, .hInstance = inst, .hbrBackground = brush, .lpszClassName = "AmericaOnlineHost" };
     _ = RegisterClassA(&main_class);
-    main_hwnd = CreateWindowExA(0, "AmericaOnlineHost", "America Online - Host", WS_OVERLAPPEDWINDOW, 60, 40, 640, 420, null, null, inst, null).?;
+    main_hwnd = CreateWindowExA(0, "AmericaOnlineHost", "America Online - Host", WS_OVERLAPPEDWINDOW, 60, 40, 760, 480, null, null, inst, null).?;
     const bar = CreateMenu();
     const pool_menu = CreatePopupMenu();
     _ = AppendMenuA(pool_menu, MF_STRING, ID_SETTINGS, "Settings...");

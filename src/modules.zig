@@ -84,7 +84,7 @@ pub fn line(buf: []u8) []u8 {
             m.state[0..m.state_len],
             m.merge[0..m.merge_len],
             m.bonus,
-            if (m.house) "on" else "off",
+            if (house_on) "on" else "off",
             m.accepted,
         }) catch {};
     }
