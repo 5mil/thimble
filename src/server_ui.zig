@@ -325,29 +325,29 @@ fn fetchRepo() void {
 fn settingsProc(window: HWND, msg: u32, wp: WPARAM, lp: LPARAM) callconv(WINAPI) LRESULT {
     switch (msg) {
         1 => {
-            _ = child(window, "STATIC", "Pick a coin. Its codebase is already known. Start builds it and opens the pool.", WS_CHILD | WS_VISIBLE, 12, 8, 520, 16, 1);
-            _ = child(window, "STATIC", "Coin", WS_CHILD | WS_VISIBLE, 12, 36, 36, 16, 2);
-            coin_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 52, 32, 160, 160, 10);
+            _ = child(window, "STATIC", "COIN", WS_CHILD | WS_VISIBLE, 12, 8, 40, 16, 1);
+            coin_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 56, 4, 180, 160, 10);
             for (coins) |c| _ = SendMessageA(coin_box, CB_ADDSTRING, 0, @bitCast(@intFromPtr(c.name.ptr)));
             _ = SendMessageA(coin_box, CB_SETCURSEL, 0, 0);
-            merge_check = child(window, "BUTTON", "Also merge", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 224, 34, 90, 20, 11);
-            merge_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 318, 32, 110, 120, 12);
-            bonus_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 438, 32, 100, 80, 14);
+            merge_check = child(window, "BUTTON", "Merge-mine", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 250, 6, 100, 20, 11);
+            merge_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 354, 4, 120, 120, 12);
+            bonus_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 484, 4, 110, 80, 14);
             inline for ([_][:0]const u8{ "no bonus", "5% house", "10% house" }) |b| _ = SendMessageA(bonus_box, CB_ADDSTRING, 0, @bitCast(@intFromPtr(b.ptr)));
             _ = SendMessageA(bonus_box, CB_SETCURSEL, 0, 0);
-            _ = child(window, "STATIC", "Codebase", WS_CHILD | WS_VISIBLE, 12, 68, 60, 16, 3);
-            repo_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 76, 64, 360, 22, 5);
-            fillCoin(0);
-            _ = child(window, "BUTTON", "Start this coin", WS_CHILD | WS_VISIBLE, 444, 62, 110, 26, 6);
-            _ = child(window, "STATIC", "Or point at a pool you already have", WS_CHILD | WS_VISIBLE, 12, 96, 220, 16, 21);
-            source_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 236, 92, 318, 22, 22);
-            _ = child(window, "STATIC", "Wallet", WS_CHILD | WS_VISIBLE, 12, 124, 48, 16, 23);
-            wallet_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 64, 120, 250, 22, 24);
-            house_check = child(window, "BUTTON", "House mines this one", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 328, 122, 160, 20, 17);
+            house_check = child(window, "BUTTON", "House mines this one", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 604, 6, 160, 20, 17);
             if (house_on) _ = SendMessageA(house_check, BM_SETCHECK, 1, 0);
-            _ = child(window, "BUTTON", "Save only", WS_CHILD | WS_VISIBLE, 12, 152, 90, 26, 18);
-            _ = child(window, "BUTTON", "Start / stop", WS_CHILD | WS_VISIBLE, 110, 152, 110, 26, 19);
-            settings_list = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 12, 186, 540, 120, 20);
+            _ = child(window, "STATIC", "CODEBASE  (filled from the coin, or type your own)", WS_CHILD | WS_VISIBLE, 12, 40, 340, 16, 3);
+            repo_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 12, 58, 640, 22, 5);
+            fillCoin(0);
+            _ = child(window, "BUTTON", "Start this coin", WS_CHILD | WS_VISIBLE, 660, 56, 120, 26, 6);
+            _ = child(window, "STATIC", "EXTERNAL POOL  (optional, for testing or backup. host:port or http://user:pass@host:8332)", WS_CHILD | WS_VISIBLE, 12, 92, 520, 16, 21);
+            source_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 12, 110, 768, 22, 22);
+            _ = child(window, "STATIC", "WALLET", WS_CHILD | WS_VISIBLE, 12, 142, 60, 16, 23);
+            wallet_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 76, 138, 360, 22, 24);
+            _ = child(window, "BUTTON", "Save", WS_CHILD | WS_VISIBLE, 450, 136, 80, 26, 18);
+            _ = child(window, "BUTTON", "Start / stop selected", WS_CHILD | WS_VISIBLE, 538, 136, 150, 26, 19);
+            _ = child(window, "STATIC", "MODULES", WS_CHILD | WS_VISIBLE, 12, 172, 80, 16, 4);
+            settings_list = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 12, 190, 768, 200, 20);
             paintSettingsList();
             _ = SetFocus(source_box);
             return 0;
@@ -377,7 +377,7 @@ fn openSettings() void {
     const inst = GetModuleHandleA(null);
     const class = WNDCLASSA{ .lpfnWndProc = settingsProc, .hInstance = inst, .hbrBackground = brush, .lpszClassName = "AmericaOnlineSettings" };
     _ = RegisterClassA(&class);
-    settings_hwnd = CreateWindowExA(0, "AmericaOnlineSettings", "Pool settings", WS_OVERLAPPEDWINDOW, 80, 60, 560, 360, main_hwnd, null, inst, null);
+    settings_hwnd = CreateWindowExA(0, "AmericaOnlineSettings", "Pool settings", WS_OVERLAPPEDWINDOW, 40, 40, 820, 460, main_hwnd, null, inst, null);
     if (settings_hwnd) |w| _ = ShowWindow(w, 5);
 }
 
