@@ -85,7 +85,7 @@ var house_on = false;
 var keep_all = true;
 var configured = false;
 
-var main_hwnd: HWND = undefined;
+var action_line: HWND = undefined;
 var settings_hwnd: ?HWND = null;
 var repo_box: HWND = undefined;
 var coin_box: HWND = undefined;
@@ -318,6 +318,7 @@ fn fetchRepo() void {
     @memcpy(held[0..typed.len], typed);
     @import("chain.zig").setStage("downloading", typed);
     setText(summary, "Downloading the codebase.");
+    setText(action_line, "Downloading the codebase.");
     const thread = std.Thread.spawn(.{}, fetchWorker, .{ held, typed.len }) catch return;
     thread.detach();
 }
@@ -336,18 +337,21 @@ fn settingsProc(window: HWND, msg: u32, wp: WPARAM, lp: LPARAM) callconv(WINAPI)
             _ = SendMessageA(bonus_box, CB_SETCURSEL, 0, 0);
             house_check = child(window, "BUTTON", "House mines this one", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 604, 6, 160, 20, 17);
             if (house_on) _ = SendMessageA(house_check, BM_SETCHECK, 1, 0);
-            _ = child(window, "STATIC", "CODEBASE  (filled from the coin, or type your own)", WS_CHILD | WS_VISIBLE, 12, 40, 340, 16, 3);
-            repo_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 12, 58, 640, 22, 5);
+            _ = child(window, "STATIC", "CODEBASE", WS_CHILD | WS_VISIBLE, 12, 40, 70, 16, 3);
+            _ = child(window, "STATIC", "Known coins fill this. Or paste any github.com link to add your own.", WS_CHILD | WS_VISIBLE, 86, 40, 420, 16, 26);
+            repo_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 12, 58, 520, 22, 5);
             fillCoin(0);
-            _ = child(window, "BUTTON", "Start this coin", WS_CHILD | WS_VISIBLE, 660, 56, 120, 26, 6);
-            _ = child(window, "STATIC", "EXTERNAL POOL  (optional, for testing or backup. host:port or http://user:pass@host:8332)", WS_CHILD | WS_VISIBLE, 12, 92, 520, 16, 21);
+            _ = child(window, "BUTTON", "Build and open pool", WS_CHILD | WS_VISIBLE, 540, 56, 150, 26, 6);
+            _ = child(window, "STATIC", "EXTERNAL POOL", WS_CHILD | WS_VISIBLE, 12, 92, 110, 16, 21);
+            _ = child(window, "STATIC", "Optional. A pool or node you already have, for testing or backup.", WS_CHILD | WS_VISIBLE, 126, 92, 400, 16, 27);
             source_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 12, 110, 768, 22, 22);
             _ = child(window, "STATIC", "WALLET", WS_CHILD | WS_VISIBLE, 12, 142, 60, 16, 23);
-            wallet_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 76, 138, 360, 22, 24);
-            _ = child(window, "BUTTON", "Save", WS_CHILD | WS_VISIBLE, 450, 136, 80, 26, 18);
-            _ = child(window, "BUTTON", "Start / stop selected", WS_CHILD | WS_VISIBLE, 538, 136, 150, 26, 19);
-            _ = child(window, "STATIC", "MODULES", WS_CHILD | WS_VISIBLE, 12, 172, 80, 16, 4);
-            settings_list = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 12, 190, 768, 200, 20);
+            wallet_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 76, 138, 300, 22, 24);
+            _ = child(window, "BUTTON", "Save module", WS_CHILD | WS_VISIBLE, 390, 136, 110, 26, 18);
+            _ = child(window, "BUTTON", "Start or stop selected", WS_CHILD | WS_VISIBLE, 508, 136, 160, 26, 19);
+            action_line = child(window, "STATIC", "Pick a coin, or paste a repo, then Build and open pool.", WS_CHILD | WS_VISIBLE, 12, 172, 600, 16, 28);
+            _ = child(window, "STATIC", "MODULES", WS_CHILD | WS_VISIBLE, 12, 192, 80, 16, 4);
+            settings_list = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 12, 210, 768, 180, 20);
             paintSettingsList();
             _ = SetFocus(source_box);
             return 0;
