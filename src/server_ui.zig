@@ -426,7 +426,7 @@ fn mainProc(window: HWND, msg: u32, wp: WPARAM, lp: LPARAM) callconv(WINAPI) LRE
             summary = child(window, "STATIC", "No modules yet.", WS_CHILD | WS_VISIBLE, 16, 28, 700, 18, 2);
             report_box = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 16, 52, 740, 380, 22);
             _ = child(window, "STATIC", "Refreshes on its own. Settings is under Pool.", WS_CHILD | WS_VISIBLE, 16, 420, 400, 16, 3);
-            _ = SetTimer(window, 1, 4000, null);
+            _ = SetTimer(window, 1, 1500, null);
             showReport();
             if (!configured) openSettings();
             return 0;
