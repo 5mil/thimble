@@ -1,4 +1,5 @@
 const std = @import("std");
+const chain = @import("chain.zig");
 
 pub const algos = [_][]const u8{ "sha256d", "scrypt", "ethash", "kawpow", "randomx", "yescrypt" };
 pub const ports = [_]u16{ 3333, 3334, 3335, 3336, 3337, 3338 };
@@ -20,6 +21,8 @@ pub const Pool = struct {
         agent: []u8,
         shares: u64 = 0,
         seen: i64 = 0,
+        diff: u32 = 1,
+        balance: u64 = 0,
     };
 
     pub fn init(alloc: std.mem.Allocator) Pool {
@@ -70,7 +73,10 @@ pub fn reportText(alloc: std.mem.Allocator) ![]u8 {
     pool.lock.lock();
     defer pool.lock.unlock();
     var out = std.ArrayList(u8).init(alloc);
-    try out.writer().print("network  host up  ports 3333-3338\naccepted {d}  rejected {d}  blocks {d}\nworkers {d}\n", .{ pool.accepted, pool.rejected, pool.blocks, pool.workers.items.len });
+    try out.writer().print("network  host up  ports 3333-3338\n", .{});
+    var chain_buf: [160]u8 = undefined;
+    try out.writer().print("{s}\n", .{chain.line(&chain_buf)});
+    try out.writer().print("accepted {d}  rejected {d}  blocks {d}\nworkers {d}\n", .{ pool.accepted, pool.rejected, pool.blocks, pool.workers.items.len });
     for (pool.workers.items) |w| {
         try out.writer().print("{s}  party {s}  {s}  shares {d}  {s}\n", .{ w.name, w.party, w.algo, w.shares, w.device });
     }
@@ -200,8 +206,14 @@ fn serve(conn: std.net.Server.Connection, algo: []const u8) void {
             if (ua.len > 0) agent_len = @min(ua.len, agent.len);
             const msg = std.fmt.bufPrint(&reply, "{{\"id\":{s},\"result\":[[[\"mining.notify\",\"ae\"],[\"mining.set_difficulty\",\"ae\"]],\"ae01\",4],\"error\":null}}\n", .{if (id.len == 0) "1" else id}) catch return;
             _ = conn.stream.writeAll(msg) catch return;
-            _ = conn.stream.writeAll("{\"id\":null,\"method\":\"mining.set_difficulty\",\"params\":[0.01]}\n") catch return;
-            _ = conn.stream.writeAll("{\"id\":null,\"method\":\"mining.notify\",\"params\":[\"1\",\"0000000000000000000000000000000000000000000000000000000000000000\",\"01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff\",\"\",\"[]\",\"20000000\",\"1a00ffff\",\"00000000\",false]}\n") catch return;
+            const start_diff: u32 = if (std.mem.eql(u8, algo, "sha256d")) 1024 else 1;
+            var diff_msg: [80]u8 = undefined;
+            const dline = std.fmt.bufPrint(&diff_msg, "{{\"id\":null,\"method\":\"mining.set_difficulty\",\"params\":[{d}]}}\n", .{start_diff}) catch return;
+            _ = conn.stream.writeAll(dline) catch return;
+            const job = chain.currentJob();
+            var note: [420]u8 = undefined;
+            const nline = std.fmt.bufPrint(&note, "{{\"id\":null,\"method\":\"mining.notify\",\"params\":[\"{s}\",\"{s}\",\"01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff\",\"\",\"[]\",\"{s}\",\"{s}\",\"{s}\",false]}}\n", .{ job.id[0..job.id_len], job.prevhash[0..64], job.version[0..8], job.nbits[0..8], job.ntime[0..8] }) catch return;
+            _ = conn.stream.writeAll(nline) catch return;
         } else if (std.mem.eql(u8, method, "mining.authorize")) {
             const who = firstQuoted(line);
             worker_len = @min(who.len, worker.len);
@@ -232,13 +244,21 @@ fn serve(conn: std.net.Server.Connection, algo: []const u8) void {
         } else if (std.mem.eql(u8, method, "mining.submit") and authorized) {
             var nonce: [64]u8 = undefined;
             const nonce_s = jsonString(line, "params", &nonce);
-            const ok = shareOk(algo, worker[0..worker_len], nonce_s);
+            const job = chain.currentJob();
+            const job_id = job.id[0..job.id_len];
+            const on_job = nonce_s.len > 0 and (job_id.len == 0 or std.mem.indexOf(u8, line, job_id) != null or job_id[0] == 'u' or job_id[0] == 0);
+            var ok = on_job and shareOk(algo, worker[0..worker_len], nonce_s);
+            if (chain.source.state == .upstream) ok = chain.submitUpstream(worker[0..worker_len], job_id, nonce_s);
+            var network = false;
+            if (ok and chain.source.state == .ready and chain.source.height > 0) network = true;
             pool.lock.lock();
             if (ok) pool.accepted += 1 else pool.rejected += 1;
-            if (ok and pool.accepted % 50 == 0) pool.blocks += 1;
+            if (network) pool.blocks += 1;
             if (ok) for (pool.workers.items) |*w| if (std.mem.eql(u8, w.name, worker[0..worker_len])) {
                 w.shares += 1;
+                w.balance += w.diff;
                 w.seen = std.time.timestamp();
+                if (w.shares % 8 == 0 and w.diff < 65536) w.diff *= 2;
             };
             pool.lock.unlock();
             if (ok) saveParty();
@@ -266,6 +286,7 @@ fn listen(port: u16, algo: []const u8) void {
 }
 
 pub fn start() !void {
+    chain.start();
     loadParty();
     var enabled = [_]bool{true} ** ports.len;
     if (std.fs.cwd().readFileAlloc(pool.alloc, "pools.cfg", 1 << 16)) |raw| {

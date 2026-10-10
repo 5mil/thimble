@@ -325,7 +325,7 @@ fn mainProc(window: HWND, msg: u32, wp: WPARAM, lp: LPARAM) callconv(WINAPI) LRE
             _ = child(window, "STATIC", "POOL REPORT", WS_CHILD | WS_VISIBLE, 16, 8, 200, 18, 1);
             summary = child(window, "STATIC", "No pools yet. Settings is in the menu.", WS_CHILD | WS_VISIBLE, 16, 28, 540, 18, 2);
             report_box = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 16, 52, 548, 250, 22);
-            _ = child(window, "STATIC", "Shares, workers, blocks, and each module. Refreshes on its own.", WS_CHILD | WS_VISIBLE, 16, 308, 500, 16, 3);
+            _ = child(window, "STATIC", "Chain source, shares, workers, blocks. Refreshes on its own.", WS_CHILD | WS_VISIBLE, 16, 308, 500, 16, 3);
             _ = SetTimer(window, 1, 4000, null);
             showReport();
             if (!configured) openSettings();

@@ -6,7 +6,15 @@ Show a friend the page: https://5mil.github.io/thimble/
 
 That page dials, plays the modem, and talks back. It does not share a room with you. The shared host is this branch.
 
-## Under the face
+## Chain source
+
+Set one of these before the host starts. The report’s first line is the chain.
+
+- `AOL_UPSTREAM=host:3333` — the host mirrors a real pool. Jobs are that pool’s jobs. Shares are forwarded. No chain download.
+- `AOL_RPC=http://user:pass@127.0.0.1:8332` — the host asks a node. State is `syncing`, `headers`, `pruned`, or `ready`. Height, peers, and IBD are on the line. A pruned node (`bitcoind -prune=550`) is enough.
+- Neither set — the line says `no node`.
+
+`AOL_WALLET` is the coinbase address used when a template is built. Balances on the report are share-difficulty units, not yet a payout run.
 
 The page and the window stay sardonic. The host underneath is the thing you leave running.
 
