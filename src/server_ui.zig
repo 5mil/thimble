@@ -280,15 +280,29 @@ fn fetchWorker(repo: [180]u8, len: usize) void {
     const chain = @import("chain.zig");
     chain.setStage("downloading", "git clone");
     const name = std.fs.path.stem(typed);
+    std.fs.cwd().makePath("coin-src") catch {};
     var dest_buf: [200]u8 = undefined;
     const dest = std.fmt.bufPrint(&dest_buf, "coin-src/{s}", .{name}) catch return;
+    std.fs.cwd().deleteTree(dest) catch {};
+    var errlog = std.fs.cwd().createFile("clone.err", .{}) catch return;
     var clone = std.process.Child.init(&.{ "git", "clone", "--depth", "1", typed, dest }, std.heap.page_allocator);
-    const cloned = clone.spawnAndWait() catch {
-        chain.setStage("failed", "git did not start");
+    clone.stderr_behavior = .Pipe;
+    clone.spawn() catch {
+        errlog.close();
+        chain.setStage("failed", "git not found. Install git and try again.");
         return;
     };
-    if (!(cloned == .Exited and cloned.Exited == 0)) {
-        chain.setStage("failed", "clone failed");
+    var err_buf: [400]u8 = undefined;
+    const err_n = if (clone.stderr) |s| s.read(&err_buf) catch 0 else 0;
+    errlog.writeAll(err_buf[0..err_n]) catch {};
+    errlog.close();
+    const term = clone.wait() catch {
+        chain.setStage("failed", "git did not finish");
+        return;
+    };
+    if (!(term == .Exited and term.Exited == 0)) {
+        const msg = if (err_n > 0) err_buf[0..@min(err_n, 80)] else "clone failed, see clone.err";
+        chain.setStage("failed", msg);
         return;
     }
     chain.setStage("cloned", "starting the build");
