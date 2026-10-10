@@ -59,7 +59,15 @@ pub fn load() void {
         m.wallet_len = put(&m.wallet, parts.next() orelse "");
         m.house = house_on;
         m.state_len = put(&m.state, if (m.source_len == 0) "no source" else if (m.on) "up" else "off");
-        count += 1;
+        var twin = false;
+        for (mods[0..count]) |*old| {
+            if (old.port == m.port and std.mem.eql(u8, old.name[0..old.name_len], m.name[0..m.name_len])) {
+                if (m.source_len > 0) old.* = m;
+                twin = true;
+                break;
+            }
+        }
+        if (!twin) count += 1;
     }
 }
 

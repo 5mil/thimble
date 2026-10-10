@@ -160,7 +160,15 @@ fn loadModules() void {
         m.bonus = bonus;
         m.source_len = copyInto(&m.source, parts.next() orelse "");
         m.wallet_len = copyInto(&m.wallet, parts.next() orelse "");
-        module_count += 1;
+        var twin = false;
+        for (modules[0..module_count]) |*old| {
+            if (old.port == m.port and std.mem.eql(u8, old.name[0..old.name_len], m.name[0..m.name_len])) {
+                if (m.source_len > 0) old.* = m;
+                twin = true;
+                break;
+            }
+        }
+        if (!twin) module_count += 1;
     }
     configured = module_count > 0;
 }
@@ -203,11 +211,23 @@ fn showReport() void {
 }
 
 fn addModule() void {
-    if (module_count >= modules.len) return setText(summary, "Eight modules is the room.");
     const picked = SendMessageA(coin_box, CB_GETCURSEL, 0, 0);
     if (picked < 0) return;
     const coin = coins[@intCast(picked)];
-    var m = &modules[module_count];
+    var m: *Module = undefined;
+    var existing = false;
+    for (modules[0..module_count]) |*old| {
+        if (old.port == coin.port and std.mem.eql(u8, old.name[0..old.name_len], coin.name)) {
+            m = old;
+            existing = true;
+            break;
+        }
+    }
+    if (!existing) {
+        if (module_count >= modules.len) return setText(summary, "Eight modules is the room.");
+        m = &modules[module_count];
+        module_count += 1;
+    }
     m.name_len = copyInto(&m.name, coin.name);
     m.algo_len = copyInto(&m.algo, coin.algo);
     m.port = coin.port;
@@ -227,7 +247,6 @@ fn addModule() void {
     var wal: [64]u8 = undefined;
     m.source_len = copyInto(&m.source, textOf(source_box, &src));
     m.wallet_len = copyInto(&m.wallet, textOf(wallet_box, &wal));
-    module_count += 1;
     saveModules();
     paintSettingsList();
     showReport();
@@ -327,8 +346,8 @@ fn mainProc(window: HWND, msg: u32, wp: WPARAM, lp: LPARAM) callconv(WINAPI) LRE
         1 => {
             _ = child(window, "STATIC", "POOL REPORT", WS_CHILD | WS_VISIBLE, 16, 8, 200, 18, 1);
             summary = child(window, "STATIC", "No pools yet. Settings is in the menu.", WS_CHILD | WS_VISIBLE, 16, 28, 540, 18, 2);
-            report_box = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 16, 52, 700, 320, 22);
-            _ = child(window, "STATIC", "Chain source, shares, workers, blocks. Refreshes on its own.", WS_CHILD | WS_VISIBLE, 16, 308, 500, 16, 3);
+            report_box = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 16, 52, 700, 340, 22);
+            _ = child(window, "STATIC", "One sentence on top. Open ports, then each module.", WS_CHILD | WS_VISIBLE, 16, 400, 500, 16, 3);
             _ = SetTimer(window, 1, 4000, null);
             showReport();
             if (!configured) openSettings();
