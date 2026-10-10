@@ -415,7 +415,7 @@ fn openSettings() void {
     const inst = GetModuleHandleA(null);
     const class = WNDCLASSA{ .lpfnWndProc = settingsProc, .hInstance = inst, .hbrBackground = brush, .lpszClassName = "AmericaOnlineSettings" };
     _ = RegisterClassA(&class);
-    settings_hwnd = CreateWindowExA(0, "AmericaOnlineSettings", "Pool settings", WS_OVERLAPPEDWINDOW, 40, 40, 820, 460, main_hwnd, null, inst, null);
+    settings_hwnd = CreateWindowExA(0, "AmericaOnlineSettings", "Pool settings", WS_OVERLAPPEDWINDOW, 20, 20, 860, 480, main_hwnd, null, inst, null);
     if (settings_hwnd) |w| _ = ShowWindow(w, 5);
 }
 
