@@ -74,6 +74,8 @@ pub fn reportText(alloc: std.mem.Allocator) ![]u8 {
     pool.lock.lock();
     defer pool.lock.unlock();
     var out = std.ArrayList(u8).init(alloc);
+    var sentence_buf: [240]u8 = undefined;
+    try out.writer().print("{s}\n", .{modules.sentence(&sentence_buf)});
     var ports_on: [48]u8 = undefined;
     var pn: usize = 0;
     for (modules.mods[0..modules.count]) |m| {

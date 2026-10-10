@@ -78,7 +78,7 @@ const coins = [_]Coin{
     .{ .name = "Yescrypt", .algo = "yescrypt", .port = 3338, .note = "CPU. Port 3338.", .merges = &.{ "none" } },
 };
 
-const Module = struct { name: [32]u8, name_len: usize, algo: [16]u8, algo_len: usize, port: u16, on: bool, merge: [24]u8, merge_len: usize, bonus: u8 };
+const Module = struct { name: [32]u8, name_len: usize, algo: [16]u8, algo_len: usize, port: u16, on: bool, merge: [24]u8, merge_len: usize, bonus: u8, source: [96]u8, source_len: usize, wallet: [64]u8, wallet_len: usize };
 var modules: [8]Module = undefined;
 var module_count: usize = 0;
 var house_on = false;
@@ -94,6 +94,8 @@ var merge_check: HWND = undefined;
 var bonus_box: HWND = undefined;
 var data_box: HWND = undefined;
 var house_check: HWND = undefined;
+var source_box: HWND = undefined;
+var wallet_box: HWND = undefined;
 var settings_list: HWND = undefined;
 var report_box: HWND = undefined;
 var summary: HWND = undefined;
@@ -124,7 +126,7 @@ fn saveModules() void {
     var file = std.fs.cwd().createFile("pools.cfg", .{}) catch return;
     defer file.close();
     for (modules[0..module_count]) |m| {
-        file.writer().print("{s}\t{s}\t{d}\t{s}\t{s}\t{d}\n", .{ m.name[0..m.name_len], m.algo[0..m.algo_len], m.port, if (m.on) "1" else "0", m.merge[0..m.merge_len], m.bonus }) catch return;
+        file.writer().print("{s}\t{s}\t{d}\t{s}\t{s}\t{d}\t{s}\t{s}\n", .{ m.name[0..m.name_len], m.algo[0..m.algo_len], m.port, if (m.on) "1" else "0", m.merge[0..m.merge_len], m.bonus, m.source[0..m.source_len], m.wallet[0..m.wallet_len] }) catch return;
     }
     file.writer().print("#house\t{s}\n#data\t{s}\n", .{ if (house_on) "1" else "0", if (keep_all) "all" else "totals" }) catch return;
     configured = module_count > 0;
@@ -156,6 +158,8 @@ fn loadModules() void {
         m.on = on;
         m.merge_len = copyInto(&m.merge, merge);
         m.bonus = bonus;
+        m.source_len = copyInto(&m.source, parts.next() orelse "");
+        m.wallet_len = copyInto(&m.wallet, parts.next() orelse "");
         module_count += 1;
     }
     configured = module_count > 0;
@@ -174,7 +178,7 @@ fn paintSettingsList() void {
     _ = SendMessageA(settings_list, LB_RESETCONTENT, 0, 0);
     for (modules[0..module_count]) |m| {
         var line: [96]u8 = undefined;
-        const text = std.fmt.bufPrintZ(&line, "{s}   {s}:{d}   {s}   merge {s}   bonus {d}%", .{ m.name[0..m.name_len], m.algo[0..m.algo_len], m.port, if (m.on) "running" else "stopped", m.merge[0..m.merge_len], m.bonus }) catch continue;
+        const text = std.fmt.bufPrintZ(&line, "{s}  {s}:{d}  {s}  {s}", .{ m.name[0..m.name_len], m.algo[0..m.algo_len], m.port, if (m.on) "running" else "stopped", if (m.source_len == 0) "no source" else m.source[0..m.source_len] }) catch continue;
         _ = SendMessageA(settings_list, LB_ADDSTRING, 0, @bitCast(@intFromPtr(text.ptr)));
     }
 }
@@ -182,8 +186,8 @@ fn paintSettingsList() void {
 fn showReport() void {
     const text = @import("pool.zig").reportText(std.heap.page_allocator) catch return;
     _ = SendMessageA(report_box, LB_RESETCONTENT, 0, 0);
-    var head: [160]u8 = undefined;
-    const head_s = std.fmt.bufPrint(&head, "{d} modules. House {s}. {s}.", .{ module_count, if (house_on) "on" else "off", if (keep_all) "all shares" else "totals" }) catch return;
+    var head: [240]u8 = undefined;
+    const head_s = @import("modules.zig").sentence(&head);
     setText(summary, head_s);
     var held: [24][180]u8 = undefined;
     var nline: usize = 0;
@@ -219,6 +223,10 @@ fn addModule() void {
     };
     house_on = SendMessageA(house_check, BM_GETCHECK, 0, 0) == 1;
     keep_all = SendMessageA(data_box, CB_GETCURSEL, 0, 0) != 1;
+    var src: [96]u8 = undefined;
+    var wal: [64]u8 = undefined;
+    m.source_len = copyInto(&m.source, textOf(source_box, &src));
+    m.wallet_len = copyInto(&m.wallet, textOf(wallet_box, &wal));
     module_count += 1;
     saveModules();
     paintSettingsList();
@@ -275,7 +283,11 @@ fn settingsProc(window: HWND, msg: u32, wp: WPARAM, lp: LPARAM) callconv(WINAPI)
             house_check = child(window, "BUTTON", "Mine to the pool", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 240, 92, 140, 20, 17);
             if (house_on) _ = SendMessageA(house_check, BM_SETCHECK, 1, 0);
             _ = child(window, "BUTTON", "Add and launch", WS_CHILD | WS_VISIBLE, 390, 88, 130, 26, 18);
-            settings_list = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 12, 124, 400, 140, 20);
+            _ = child(window, "STATIC", "Source", WS_CHILD | WS_VISIBLE, 12, 124, 50, 16, 21);
+            source_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 66, 120, 280, 22, 22);
+            _ = child(window, "STATIC", "Wallet", WS_CHILD | WS_VISIBLE, 354, 124, 46, 16, 23);
+            wallet_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 402, 120, 120, 22, 24);
+            settings_list = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 12, 152, 400, 120, 20);
             _ = child(window, "BUTTON", "Start / stop", WS_CHILD | WS_VISIBLE, 422, 124, 100, 26, 19);
             paintSettingsList();
             _ = SetFocus(repo_box);
@@ -306,7 +318,7 @@ fn openSettings() void {
     const inst = GetModuleHandleA(null);
     const class = WNDCLASSA{ .lpfnWndProc = settingsProc, .hInstance = inst, .hbrBackground = brush, .lpszClassName = "AmericaOnlineSettings" };
     _ = RegisterClassA(&class);
-    settings_hwnd = CreateWindowExA(0, "AmericaOnlineSettings", "Pool settings", WS_OVERLAPPEDWINDOW, 140, 80, 560, 340, main_hwnd, null, inst, null);
+    settings_hwnd = CreateWindowExA(0, "AmericaOnlineSettings", "Pool settings", WS_OVERLAPPEDWINDOW, 140, 80, 560, 360, main_hwnd, null, inst, null);
     if (settings_hwnd) |w| _ = ShowWindow(w, 5);
 }
 

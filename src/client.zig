@@ -218,7 +218,9 @@ fn sign(kind: []const u8) void {
     var raw: [800]u8 = undefined;
     const path = if (std.mem.eql(u8, kind, "signup")) "/api/signup" else "/api/login";
     const response = http("POST", path, body, "", &raw) orelse {
-        _ = MessageBoxA(hwnd, "The server did not answer. Start the Zig host on that machine.", "America Online", 0);
+        var msg: [120]u8 = undefined;
+        const line = std.fmt.bufPrintZ(&msg, "Host did not answer at {s}:{s}.", .{ host, port }) catch "Host did not answer.";
+        _ = MessageBoxA(hwnd, line, "America Online", 0);
         return;
     };
     if (std.mem.indexOf(u8, response, "\"ok\":true") == null) {
@@ -240,6 +242,14 @@ fn sign(kind: []const u8) void {
     if (room_i > 4) room_i = 0;
     since = 0;
     online = true;
+    var remember: [96]u8 = undefined;
+    if (std.fmt.bufPrint(&remember, "{s}\n{s}\n", .{ host, port })) |saved| {
+        var file = std.fs.cwd().createFile("client.cfg", .{}) catch null;
+        if (file) |*f| {
+            f.writeAll(saved) catch {};
+            f.close();
+        }
+    } else |_| {}
     _ = SendMessageA(log_box, LB_RESETCONTENT, 0, 0);
     showChat(true);
     _ = CreateThread(null, 0, pollThread, null, 0, null);
@@ -262,7 +272,7 @@ fn showChat(on: bool) void {
     _ = ShowWindow(mail_btn, chat_show);
     _ = ShowWindow(mine_btn, chat_show);
     _ = ShowWindow(worker_box, chat_show);
-    _ = SetWindowTextA(hwnd, if (on) "America Online — People Connection" else "America Online — Sign On");
+    _ = SetWindowTextA(hwnd, if (on) "America Online - People Connection" else "America Online - Sign On");
 }
 
 fn sendChat() void {
@@ -289,7 +299,9 @@ fn startRig() void {
     port_n = std.fmt.parseInt(u16, port, 10) catch 3333;
     const addr = std.net.Address.parseIp4(std.mem.sliceTo(&host_text, 0), port_n) catch return;
     const stream = std.net.tcpConnectToAddress(addr) catch {
-        _ = MessageBoxA(hwnd, "The pool port did not answer. Start the server EXE.", "America Online", 0);
+        var msg: [120]u8 = undefined;
+        const line = std.fmt.bufPrintZ(&msg, "Pool did not answer at {s}:{s}.", .{ host, port }) catch "Pool did not answer.";
+        _ = MessageBoxA(hwnd, line, "America Online", 0);
         return;
     };
     var login: [220]u8 = undefined;

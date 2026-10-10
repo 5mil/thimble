@@ -17,6 +17,12 @@ pub const Mod = struct {
     state_len: usize = 0,
     accepted: u64 = 0,
     house_shares: u64 = 0,
+    source: [96]u8 = undefined,
+    source_len: usize = 0,
+    wallet: [64]u8 = undefined,
+    wallet_len: usize = 0,
+    stale: u64 = 0,
+    duplicate: u64 = 0,
 };
 
 pub var mods: [8]Mod = undefined;
@@ -49,8 +55,10 @@ pub fn load() void {
         m.on = std.mem.eql(u8, parts.next() orelse "0", "1");
         m.merge_len = put(&m.merge, parts.next() orelse "none");
         m.bonus = std.fmt.parseInt(u8, parts.next() orelse "0", 10) catch 0;
+        m.source_len = put(&m.source, parts.next() orelse "");
+        m.wallet_len = put(&m.wallet, parts.next() orelse "");
         m.house = house_on;
-        m.state_len = put(&m.state, if (m.on) "up" else "off");
+        m.state_len = put(&m.state, if (m.source_len == 0) "no source" else if (m.on) "up" else "off");
         count += 1;
     }
 }
@@ -73,11 +81,24 @@ pub fn bonusOf(port: u16) u64 {
     return m.house_shares * m.bonus / 100;
 }
 
+pub fn sentence(buf: []u8) []u8 {
+    var out = std.ArrayList(u8).init(std.heap.page_allocator);
+    if (count == 0) return std.fmt.bufPrint(buf, "No modules. Add one in settings.", .{}) catch buf[0..0];
+    for (mods[0..count], 0..) |m, i| {
+        if (i != 0) out.appendSlice(". ") catch {};
+        out.writer().print("{s} {s}", .{ m.name[0..m.name_len], m.state[0..m.state_len] }) catch {};
+        if (m.height > 0) out.writer().print(" {d}", .{m.height}) catch {};
+    }
+    const n = @min(out.items.len, buf.len);
+    @memcpy(buf[0..n], out.items[0..n]);
+    return buf[0..n];
+}
+
 pub fn line(buf: []u8) []u8 {
     var out = std.ArrayList(u8).init(std.heap.page_allocator);
     if (count == 0) return std.fmt.bufPrint(buf, "modules  none configured", .{}) catch buf[0..0];
     for (mods[0..count]) |m| {
-        out.writer().print("module  {s}  {s}:{d}  {s}  merge {s}  bonus {d}%  house {s}  shares {d}\n", .{
+        out.writer().print("module  {s}  {s}:{d}  {s}  merge {s}  bonus {d}%  house {s}  shares {d}  stale {d}\n", .{
             m.name[0..m.name_len],
             m.algo[0..m.algo_len],
             m.port,
@@ -86,6 +107,7 @@ pub fn line(buf: []u8) []u8 {
             m.bonus,
             if (house_on) "on" else "off",
             m.accepted,
+            m.stale,
         }) catch {};
     }
     const n = @min(out.items.len, buf.len);
