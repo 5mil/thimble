@@ -196,6 +196,8 @@ fn showReport() void {
     }
     note("Report is live. Shares, workers, blocks, and the line.");
 }
+
+fn fetchRepo() void {
     var repo: [180]u8 = undefined;
     const typed = textOf(repo_box, &repo);
     if (!std.mem.startsWith(u8, typed, "https://github.com/") and !std.mem.startsWith(u8, typed, "https://gitlab.com/")) {

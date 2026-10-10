@@ -63,6 +63,8 @@ pub const Pool = struct {
     }
 };
 
+pub var pool: Pool = undefined;
+
 pub fn reportText(alloc: std.mem.Allocator) ![]u8 {
     pool.lock.lock();
     defer pool.lock.unlock();
