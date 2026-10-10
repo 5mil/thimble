@@ -242,7 +242,6 @@ fn addModule() void {
         else => 0,
     };
     house_on = SendMessageA(house_check, BM_GETCHECK, 0, 0) == 1;
-    keep_all = SendMessageA(data_box, CB_GETCURSEL, 0, 0) != 1;
     var src: [96]u8 = undefined;
     var wal: [64]u8 = undefined;
     m.source_len = copyInto(&m.source, textOf(source_box, &src));
@@ -283,33 +282,31 @@ fn fetchRepo() void {
 fn settingsProc(window: HWND, msg: u32, wp: WPARAM, lp: LPARAM) callconv(WINAPI) LRESULT {
     switch (msg) {
         1 => {
-            _ = child(window, "STATIC", "Settings. Saved to pools.cfg. The report stays on the other window.", WS_CHILD | WS_VISIBLE, 12, 8, 520, 16, 1);
-            _ = child(window, "STATIC", "Coin repo", WS_CHILD | WS_VISIBLE, 12, 32, 70, 16, 2);
-            repo_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 86, 28, 360, 22, 5);
-            _ = child(window, "BUTTON", "Fetch", WS_CHILD | WS_VISIBLE, 454, 26, 70, 26, 6);
-            coin_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 12, 58, 160, 160, 10);
+            _ = child(window, "STATIC", "Add a module. A coin that is already here is updated, not doubled.", WS_CHILD | WS_VISIBLE, 12, 8, 520, 16, 1);
+            _ = child(window, "STATIC", "Coin", WS_CHILD | WS_VISIBLE, 12, 34, 40, 16, 2);
+            coin_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 56, 30, 150, 160, 10);
             for (coins) |c| _ = SendMessageA(coin_box, CB_ADDSTRING, 0, @bitCast(@intFromPtr(c.name.ptr)));
             _ = SendMessageA(coin_box, CB_SETCURSEL, 0, 0);
-            merge_check = child(window, "BUTTON", "Merge", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 184, 60, 70, 20, 11);
-            merge_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 258, 58, 120, 120, 12);
+            merge_check = child(window, "BUTTON", "Merge", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 216, 32, 64, 20, 11);
+            merge_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 284, 30, 110, 120, 12);
             fillMerge(0);
-            bonus_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 12, 90, 100, 80, 14);
+            bonus_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 404, 30, 110, 80, 14);
             inline for ([_][:0]const u8{ "no bonus", "5% house", "10% house" }) |b| _ = SendMessageA(bonus_box, CB_ADDSTRING, 0, @bitCast(@intFromPtr(b.ptr)));
             _ = SendMessageA(bonus_box, CB_SETCURSEL, 0, 0);
-            data_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 120, 90, 110, 80, 16);
-            inline for ([_][:0]const u8{ "keep all", "totals only" }) |b| _ = SendMessageA(data_box, CB_ADDSTRING, 0, @bitCast(@intFromPtr(b.ptr)));
-            _ = SendMessageA(data_box, CB_SETCURSEL, if (keep_all) 0 else 1, 0);
-            house_check = child(window, "BUTTON", "Mine to the pool", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 240, 92, 140, 20, 17);
+            _ = child(window, "STATIC", "Source", WS_CHILD | WS_VISIBLE, 12, 64, 44, 16, 21);
+            source_box = child(window, "EDIT", "host:3333  or  http://user:pass@127.0.0.1:8332", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 60, 60, 454, 22, 22);
+            _ = child(window, "STATIC", "Wallet", WS_CHILD | WS_VISIBLE, 12, 92, 44, 16, 23);
+            wallet_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 60, 88, 280, 22, 24);
+            house_check = child(window, "BUTTON", "House mines this module", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 350, 90, 170, 20, 17);
             if (house_on) _ = SendMessageA(house_check, BM_SETCHECK, 1, 0);
-            _ = child(window, "BUTTON", "Add and launch", WS_CHILD | WS_VISIBLE, 390, 88, 130, 26, 18);
-            _ = child(window, "STATIC", "Source", WS_CHILD | WS_VISIBLE, 12, 124, 50, 16, 21);
-            source_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 66, 120, 280, 22, 22);
-            _ = child(window, "STATIC", "Wallet", WS_CHILD | WS_VISIBLE, 354, 124, 46, 16, 23);
-            wallet_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 402, 120, 120, 22, 24);
-            settings_list = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 12, 152, 400, 120, 20);
-            _ = child(window, "BUTTON", "Start / stop", WS_CHILD | WS_VISIBLE, 422, 124, 100, 26, 19);
+            _ = child(window, "BUTTON", "Save module", WS_CHILD | WS_VISIBLE, 12, 118, 120, 26, 18);
+            _ = child(window, "BUTTON", "Start / stop selected", WS_CHILD | WS_VISIBLE, 140, 118, 160, 26, 19);
+            _ = child(window, "STATIC", "Coin codebase (optional)", WS_CHILD | WS_VISIBLE, 12, 152, 150, 16, 3);
+            repo_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 166, 148, 280, 22, 5);
+            _ = child(window, "BUTTON", "Fetch", WS_CHILD | WS_VISIBLE, 454, 146, 60, 26, 6);
+            settings_list = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 12, 180, 500, 130, 20);
             paintSettingsList();
-            _ = SetFocus(repo_box);
+            _ = SetFocus(source_box);
             return 0;
         },
         WM_COMMAND => {
@@ -337,17 +334,17 @@ fn openSettings() void {
     const inst = GetModuleHandleA(null);
     const class = WNDCLASSA{ .lpfnWndProc = settingsProc, .hInstance = inst, .hbrBackground = brush, .lpszClassName = "AmericaOnlineSettings" };
     _ = RegisterClassA(&class);
-    settings_hwnd = CreateWindowExA(0, "AmericaOnlineSettings", "Pool settings", WS_OVERLAPPEDWINDOW, 140, 80, 560, 360, main_hwnd, null, inst, null);
+    settings_hwnd = CreateWindowExA(0, "AmericaOnlineSettings", "Pool settings", WS_OVERLAPPEDWINDOW, 140, 80, 540, 360, main_hwnd, null, inst, null);
     if (settings_hwnd) |w| _ = ShowWindow(w, 5);
 }
 
 fn mainProc(window: HWND, msg: u32, wp: WPARAM, lp: LPARAM) callconv(WINAPI) LRESULT {
     switch (msg) {
         1 => {
-            _ = child(window, "STATIC", "POOL REPORT", WS_CHILD | WS_VISIBLE, 16, 8, 200, 18, 1);
-            summary = child(window, "STATIC", "No pools yet. Settings is in the menu.", WS_CHILD | WS_VISIBLE, 16, 28, 540, 18, 2);
-            report_box = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 16, 52, 700, 340, 22);
-            _ = child(window, "STATIC", "One sentence on top. Open ports, then each module.", WS_CHILD | WS_VISIBLE, 16, 400, 500, 16, 3);
+            _ = child(window, "STATIC", "POOL", WS_CHILD | WS_VISIBLE, 16, 8, 80, 18, 1);
+            summary = child(window, "STATIC", "No modules yet.", WS_CHILD | WS_VISIBLE, 16, 28, 700, 18, 2);
+            report_box = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 16, 52, 720, 360, 22);
+            _ = child(window, "STATIC", "Refreshes on its own. Settings is under Pool.", WS_CHILD | WS_VISIBLE, 16, 420, 400, 16, 3);
             _ = SetTimer(window, 1, 4000, null);
             showReport();
             if (!configured) openSettings();
@@ -381,7 +378,7 @@ pub fn open() void {
     const inst = GetModuleHandleA(null);
     const main_class = WNDCLASSA{ .lpfnWndProc = mainProc, .hInstance = inst, .hbrBackground = brush, .lpszClassName = "AmericaOnlineHost" };
     _ = RegisterClassA(&main_class);
-    main_hwnd = CreateWindowExA(0, "AmericaOnlineHost", "America Online - Host", WS_OVERLAPPEDWINDOW, 60, 40, 760, 480, null, null, inst, null).?;
+    main_hwnd = CreateWindowExA(0, "AmericaOnlineHost", "America Online - Host", WS_OVERLAPPEDWINDOW, 40, 30, 780, 500, null, null, inst, null).?;
     const bar = CreateMenu();
     const pool_menu = CreatePopupMenu();
     _ = AppendMenuA(pool_menu, MF_STRING, ID_SETTINGS, "Settings...");

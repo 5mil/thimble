@@ -93,12 +93,15 @@ pub fn reportText(alloc: std.mem.Allocator) ![]u8 {
         pn += piece.len;
     }
     if (pn == 0) pn = (std.fmt.bufPrint(&ports_on, "none", .{}) catch "none").len;
-    try out.writer().print("network  host up  open {s}\n", .{ports_on[0..pn]});
+    try out.appendSlice("--- ports ---\n");
+    try out.writer().print("open  {s}\n", .{ports_on[0..pn]});
     var chain_buf: [160]u8 = undefined;
+    try out.appendSlice("--- chain ---\n");
     try out.writer().print("{s}\n", .{chain.line(&chain_buf)});
-    var mod_buf: [640]u8 = undefined;
+    var mod_buf: [1200]u8 = undefined;
     try out.appendSlice(modules.line(&mod_buf));
-    try out.writer().print("accepted {d}  rejected {d}  blocks {d}\nworkers {d}\n", .{ pool.accepted, pool.rejected, pool.blocks, pool.workers.items.len });
+    try out.appendSlice("--- totals ---\n");
+    try out.writer().print("accepted {d}   rejected {d}   blocks {d}   workers {d}\n", .{ pool.accepted, pool.rejected, pool.blocks, pool.workers.items.len });
     for (pool.workers.items) |w| {
         try out.writer().print("{s}  party {s}  {s}  shares {d}  {s}\n", .{ w.name, w.party, w.algo, w.shares, w.device });
     }

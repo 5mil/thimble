@@ -91,12 +91,14 @@ pub fn bonusOf(port: u16) u64 {
 
 pub fn sentence(buf: []u8) []u8 {
     var out = std.ArrayList(u8).init(std.heap.page_allocator);
-    if (count == 0) return std.fmt.bufPrint(buf, "No modules. Add one in settings.", .{}) catch buf[0..0];
-    for (mods[0..count], 0..) |m, i| {
-        if (i != 0) out.appendSlice(". ") catch {};
-        out.writer().print("{s} {s}", .{ m.name[0..m.name_len], m.state[0..m.state_len] }) catch {};
-        if (m.height > 0) out.writer().print(" {d}", .{m.height}) catch {};
+    if (count == 0) return std.fmt.bufPrint(buf, "No modules yet. Pool, then Settings.", .{}) catch buf[0..0];
+    var up: usize = 0;
+    var down: usize = 0;
+    for (mods[0..count]) |m| {
+        if (!m.on) continue;
+        if (m.source_len == 0) down += 1 else up += 1;
     }
+    out.writer().print("{d} modules. {d} with a source. {d} waiting.", .{ count, up, down }) catch {};
     const n = @min(out.items.len, buf.len);
     @memcpy(buf[0..n], out.items[0..n]);
     return buf[0..n];
@@ -104,19 +106,20 @@ pub fn sentence(buf: []u8) []u8 {
 
 pub fn line(buf: []u8) []u8 {
     var out = std.ArrayList(u8).init(std.heap.page_allocator);
-    if (count == 0) return std.fmt.bufPrint(buf, "modules  none configured", .{}) catch buf[0..0];
+    if (count == 0) return std.fmt.bufPrint(buf, "", .{}) catch buf[0..0];
+    out.appendSlice("--- modules ---\n") catch {};
     for (mods[0..count]) |m| {
-        out.writer().print("module  {s}  {s}:{d}  {s}  merge {s}  bonus {d}%  house {s}  shares {d}  stale {d}\n", .{
+        const src = if (m.source_len == 0) "no source" else m.source[0..m.source_len];
+        out.writer().print("{s}   {s}   {d}   {s}   merge {s}   {d}%   shares {d}\n", .{
             m.name[0..m.name_len],
             m.algo[0..m.algo_len],
             m.port,
-            m.state[0..m.state_len],
+            if (m.on) "running" else "stopped",
             m.merge[0..m.merge_len],
             m.bonus,
-            if (house_on) "on" else "off",
             m.accepted,
-            m.stale,
         }) catch {};
+        out.writer().print("           source {s}\n", .{src}) catch {};
     }
     const n = @min(out.items.len, buf.len);
     @memcpy(buf[0..n], out.items[0..n]);
