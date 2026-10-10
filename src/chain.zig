@@ -65,6 +65,7 @@ pub fn setStage(stage: []const u8, detail: []const u8) void {
 pub fn progress() u8 {
     if (build_stage_len == 0) return 0;
     const s = build_stage[0..build_stage_len];
+    if (std.mem.eql(u8, s, "checking")) return 5;
     if (std.mem.eql(u8, s, "downloading")) return 15;
     if (std.mem.eql(u8, s, "cloned")) return 30;
     if (std.mem.eql(u8, s, "compiling")) return 55;

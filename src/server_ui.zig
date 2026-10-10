@@ -261,6 +261,20 @@ fn addModule() void {
         setText(summary, "That is a codebase. Put it in Codebase, not Jobs from.");
     }
     m.wallet_len = copyInto(&m.wallet, textOf(wallet_box, &wal));
+    if (m.source_len > 0 and !std.mem.startsWith(u8, m.source[0..m.source_len], "https://")) {
+        const chain = @import("chain.zig");
+        if (std.mem.startsWith(u8, m.source[0..m.source_len], "http://")) {
+            const n = @min(m.source_len, chain.source.rpc.len);
+            @memcpy(chain.source.rpc[0..n], m.source[0..n]);
+            chain.source.rpc_len = n;
+            chain.source.upstream_len = 0;
+        } else {
+            const n = @min(m.source_len, chain.source.upstream.len);
+            @memcpy(chain.source.upstream[0..n], m.source[0..n]);
+            chain.source.upstream_len = n;
+            chain.source.rpc_len = 0;
+        }
+    }
     saveModules();
     paintSettingsList();
     showReport();
@@ -276,18 +290,42 @@ fn toggleModule() void {
 }
 
 fn which(cmd: []const u8) bool {
-    var proc = std.process.Child.init(&.{ "where", cmd }, std.heap.page_allocator);
-    proc.stdout_behavior = .Ignore;
-    proc.stderr_behavior = .Ignore;
-    const term = proc.spawnAndWait() catch return false;
-    return term == .Exited and term.Exited == 0;
+    const tries = [_][]const u8{ "where", "which" };
+    for (tries) |tool| {
+        var proc = std.process.Child.init(&.{ tool, cmd }, std.heap.page_allocator);
+        proc.stdout_behavior = .Ignore;
+        proc.stderr_behavior = .Ignore;
+        const term = proc.spawnAndWait() catch continue;
+        if (term == .Exited and term.Exited == 0) return true;
+    }
+    const common = [_][]const u8{
+        "C:\\Program Files\\Git\\cmd\\git.exe",
+        "C:\\Program Files (x86)\\Git\\cmd\\git.exe",
+    };
+    for (common) |path| {
+        std.fs.cwd().access(path, .{}) catch continue;
+        return true;
+    }
+    return false;
+}
+
+fn gitExe() []const u8 {
+    const common = [_][]const u8{
+        "C:\\Program Files\\Git\\cmd\\git.exe",
+        "C:\\Program Files (x86)\\Git\\cmd\\git.exe",
+    };
+    for (common) |path| {
+        std.fs.cwd().access(path, .{}) catch continue;
+        return path;
+    }
+    return "git";
 }
 
 fn canReach(host: []const u8) bool {
-    var proc = std.process.Child.init(&.{ "ping", "-n", "1", "-w", "2000", host }, std.heap.page_allocator);
+    var proc = std.process.Child.init(&.{ "ping", "-n", "1", "-w", "3000", host }, std.heap.page_allocator);
     proc.stdout_behavior = .Ignore;
     proc.stderr_behavior = .Ignore;
-    const term = proc.spawnAndWait() catch return false;
+    const term = proc.spawnAndWait() catch return true;
     return term == .Exited and term.Exited == 0;
 }
 
@@ -314,7 +352,7 @@ fn fetchWorker(repo: [180]u8, len: usize) void {
     const dest = std.fmt.bufPrint(&dest_buf, "coin-src/{s}", .{name}) catch return;
     std.fs.cwd().deleteTree(dest) catch {};
     var errlog = std.fs.cwd().createFile("clone.err", .{}) catch return;
-    var clone = std.process.Child.init(&.{ "git", "clone", "--depth", "1", "--progress", typed, dest }, std.heap.page_allocator);
+    var clone = std.process.Child.init(&.{ gitExe(), "clone", "--depth", "1", "--progress", typed, dest }, std.heap.page_allocator);
     clone.stderr_behavior = .Pipe;
     clone.spawn() catch {
         errlog.close();
@@ -337,11 +375,15 @@ fn fetchWorker(repo: [180]u8, len: usize) void {
         chain.setStage("failed", why[0..n]);
         return;
     }
-    chain.setStage("cloned", "starting the build");
+    chain.setStage("cloned", "codebase is on disk");
     var file = std.fs.cwd().createFile("coin.cfg", .{}) catch return;
     file.writer().print("name={s}\nrepo={s}\npath={s}\n", .{ name, typed, dest }) catch {};
     file.close();
-    chain.setStage("compiling", "make or cmake, this can take a while");
+    if (!which("make") and !which("cmake") and !which("mingw32-make")) {
+        chain.setStage("ready", "cloned. No build tools on this machine. Use External Pool for jobs, or install a compiler.");
+        return;
+    }
+    chain.setStage("compiling", "build tools found, this can take a while");
     var log = std.fs.cwd().createFile("build.log", .{}) catch return;
     var build = std.process.Child.init(&.{ "sh", "-c", "cd coin-src/* && (make -j2 || cmake -B build && cmake --build build -j2) > ../build.log 2>&1 || true" }, std.heap.page_allocator);
     build.stdout_behavior = .Ignore;
