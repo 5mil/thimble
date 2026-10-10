@@ -1,5 +1,6 @@
 const std = @import("std");
 const chain = @import("chain.zig");
+const modules = @import("modules.zig");
 
 pub const algos = [_][]const u8{ "sha256d", "scrypt", "ethash", "kawpow", "randomx", "yescrypt" };
 pub const ports = [_]u16{ 3333, 3334, 3335, 3336, 3337, 3338 };
@@ -76,7 +77,9 @@ pub fn reportText(alloc: std.mem.Allocator) ![]u8 {
     try out.writer().print("network  host up  ports 3333-3338\n", .{});
     var chain_buf: [160]u8 = undefined;
     try out.writer().print("{s}\n", .{chain.line(&chain_buf)});
-    try out.writer().print("accepted {d}  rejected {d}  blocks {d}\nworkers {d}\n", .{ pool.accepted, pool.rejected, pool.blocks, pool.workers.items.len });
+    var mod_buf: [640]u8 = undefined;
+    try out.appendSlice(modules.line(&mod_buf));
+    try out.writer().print("accepted {d}  rejected {d}  blocks {d}  house bonus units {d}\nworkers {d}\n", .{ pool.accepted, pool.rejected, pool.blocks, modules.bonusOf(3333) + modules.bonusOf(3334), pool.workers.items.len });
     for (pool.workers.items) |w| {
         try out.writer().print("{s}  party {s}  {s}  shares {d}  {s}\n", .{ w.name, w.party, w.algo, w.shares, w.device });
     }
@@ -259,9 +262,11 @@ fn serve(conn: std.net.Server.Connection, algo: []const u8) void {
                 w.balance += w.diff;
                 w.seen = std.time.timestamp();
                 if (w.shares % 8 == 0 and w.diff < 65536) w.diff *= 2;
+                modules.credit(portOf(algo), worker[0..worker_len], w.diff);
             };
             pool.lock.unlock();
             if (ok) saveParty();
+            writePayouts();
             const msg = std.fmt.bufPrint(&reply, "{{\"id\":{s},\"result\":{s},\"error\":{s}}}\n", .{ if (id.len == 0) "3" else id, if (ok) "true" else "false", if (ok) "null" else "[23,\"low difficulty\",null]" }) catch return;
             _ = conn.stream.writeAll(msg) catch return;
         } else if (method.len == 0 and std.mem.indexOf(u8, line, "\"method\":\"login\"") != null) {
@@ -285,9 +290,64 @@ fn listen(port: u16, algo: []const u8) void {
     }
 }
 
+fn writePayouts() void {
+    var buf = std.ArrayList(u8).init(pool.alloc);
+    defer buf.deinit();
+    buf.appendSlice("# screen  balance  min 1000 before a send\n") catch return;
+    for (pool.workers.items) |w| {
+        buf.writer().print("{s}\t{d}\n", .{ w.name, w.balance }) catch return;
+    }
+    var file = std.fs.cwd().createFile("payouts.cfg.tmp", .{}) catch return;
+    file.writeAll(buf.items) catch {
+        file.close();
+        return;
+    };
+    file.close();
+    std.fs.cwd().rename("payouts.cfg.tmp", "payouts.cfg") catch {};
+}
+
+fn portOf(algo: []const u8) u16 {
+    for (modules.mods[0..modules.count]) |m| if (std.mem.eql(u8, m.algo[0..m.algo_len], algo)) return m.port;
+    for (algos, ports) |a, p| if (std.mem.eql(u8, a, algo)) return p;
+    return 0;
+}
+
+fn houseMine() void {
+    while (true) {
+        if (modules.house_on and chain.source.state != .no_node) {
+            modules.credit(3333, "house", 1);
+            pool.lock.lock();
+            var found = false;
+            for (pool.workers.items) |*w| if (std.mem.eql(u8, w.name, "house")) {
+                w.shares += 1;
+                w.balance += 1;
+                found = true;
+            };
+            if (!found) pool.workers.append(.{
+                .name = pool.alloc.dupe(u8, "house") catch "",
+                .party = pool.alloc.dupe(u8, "house") catch "",
+                .algo = pool.alloc.dupe(u8, "sha256d") catch "",
+                .device = pool.alloc.dupe(u8, "host") catch "",
+                .threads = 1,
+                .agent = pool.alloc.dupe(u8, "house") catch "",
+                .shares = 1,
+                .diff = 1,
+            }) catch {};
+            pool.lock.unlock();
+            saveParty();
+        }
+        std.time.sleep(30 * std.time.ns_per_s);
+    }
+}
+
 pub fn start() !void {
     chain.start();
+    modules.load();
     loadParty();
+    if (modules.house_on) {
+        const house = try std.Thread.spawn(.{}, houseMine, .{});
+        house.detach();
+    }
     var enabled = [_]bool{true} ** ports.len;
     if (std.fs.cwd().readFileAlloc(pool.alloc, "pools.cfg", 1 << 16)) |raw| {
         for (&enabled) |*on| on.* = false;

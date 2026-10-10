@@ -6,7 +6,15 @@ Show a friend the page: https://5mil.github.io/thimble/
 
 That page dials, plays the modem, and talks back. It does not share a room with you. The shared host is this branch.
 
-## Chain source
+## Modules, house, merge, payout
+
+`pools.cfg` is the module list. Each line that is on gets its own listener. Two modules on means two ports, two jobs, two totals. Turning one off leaves the others.
+
+House is a worker named `house`. It only runs if the settings window saved `#house 1` and a chain source is connected. The bonus percent on the module is taken from house shares, not printed.
+
+Merge is stored per module (`Litecoin` can say `Dogecoin`). The report shows the child. A second chain source for that child is the next wire. Until then the share is still the parent’s share.
+
+`payouts.cfg` is the ledger: screen name and balance. A send happens only after a balance clears 1000. The file is the record. It is not a broadcast.
 
 Set one of these before the host starts. The report’s first line is the chain.
 
