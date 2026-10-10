@@ -86,6 +86,7 @@ var keep_all = true;
 var configured = false;
 
 var action_line: HWND = undefined;
+var main_hwnd: HWND = undefined;
 var settings_hwnd: ?HWND = null;
 var repo_box: HWND = undefined;
 var coin_box: HWND = undefined;
