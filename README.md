@@ -6,7 +6,15 @@ Show a friend the page: https://5mil.github.io/thimble/
 
 That page dials, plays the modem, and talks back. It does not share a room with you. The shared host is this branch.
 
-## The two programs
+## Under the face
+
+The page and the window stay sardonic. The host underneath is the thing you leave running.
+
+Saves of members and mail go to `aol.db.tmp` and replace `aol.db` only after the write finishes. Party shares do the same with `party.db`. A crash mid-save does not leave a half file as the only copy.
+
+Sessions die after seven days without use. `/api/health` returns users, sessions, messages, accepted shares, and worker count. Set `AOL_ADMIN` before any coin fetch. Repos stay limited to GitHub and GitLab HTTPS.
+
+If `pools.cfg` exists, only modules marked on open a stratum port. With no file, or with every module off, all six ports open. The report window and the settings window are separate. Settings reload from `pools.cfg` on the next start.
 
 `AmericaOnlineServer.exe` is the console. It starts the sign-on host on 8080 and the pool on 3333 through 3338. The menu in that window is `1` host, `2` pool status, `3` fetch a coin repo, `4` quit. Set `AOL_ADMIN` before you use admin or fetch.
 

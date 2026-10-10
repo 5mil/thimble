@@ -78,8 +78,6 @@ const Store = struct {
     }
 
     fn save(self: *Store) !void {
-        var file = try std.fs.cwd().createFile(self.path, .{});
-        defer file.close();
         var buf = std.ArrayList(u8).init(self.alloc);
         defer buf.deinit();
         for (self.users.items) |u| {
@@ -97,9 +95,22 @@ const Store = struct {
             defer self.alloc.free(body);
             try buf.writer().print("mail\t{d}\t{d}\t{d}\t{s}\t{s}\t{s}\t{d}\n", .{ m.id, m.from_id, m.to_id, subject, body, if (m.unread) "1" else "0", m.created });
         }
-        try file.writeAll(buf.items);
+        try atomicWrite(self.alloc, self.path, buf.items);
     }
 };
+
+fn atomicWrite(alloc: std.mem.Allocator, path: []const u8, data: []const u8) !void {
+    const tmp = try std.fmt.allocPrint(alloc, "{s}.tmp", .{path});
+    defer alloc.free(tmp);
+    var file = try std.fs.cwd().createFile(tmp, .{});
+    try file.writeAll(data);
+    file.close();
+    std.fs.cwd().rename(tmp, path) catch |err| {
+        file = std.fs.cwd().createFile(path, .{}) catch return err;
+        defer file.close();
+        try file.writeAll(data);
+    };
+}
 
 fn escape(alloc: std.mem.Allocator, text: []const u8) ![]u8 {
     var out = std.ArrayList(u8).init(alloc);
@@ -161,9 +172,11 @@ fn auth(store: *Store, header: []const u8) ?User {
     const prefix = "Bearer ";
     if (!std.mem.startsWith(u8, header, prefix)) return null;
     const token = header[prefix.len..];
+    const now = std.time.timestamp();
     for (store.sessions.items) |*s| {
+        if (now - s.seen > 60 * 60 * 24 * 7) continue;
         if (std.mem.eql(u8, s.token, token)) {
-            s.seen = std.time.timestamp();
+            s.seen = now;
             return userById(store, s.user_id);
         }
     }
@@ -247,6 +260,19 @@ fn handle(store: *Store, alloc: std.mem.Allocator, method: []const u8, path: []c
         defer file.close();
         try file.writer().print("name={s}\nrepo={s}\npath={s}\n", .{ name, repo, dest });
         const payload = try std.fmt.allocPrint(alloc, "{{\"ok\":true,\"coin\":\"{s}\",\"path\":\"{s}\"}}", .{ name, dest });
+        return std.fmt.allocPrint(alloc, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n{s}", .{ payload.len, payload });
+    }
+    if (std.mem.eql(u8, path, "/api/health")) {
+        store.lock.lock();
+        const users = store.users.items.len;
+        const sessions = store.sessions.items.len;
+        const messages = store.messages.items.len;
+        store.lock.unlock();
+        pool.pool.lock.lock();
+        const accepted = pool.pool.accepted;
+        const workers = pool.pool.workers.items.len;
+        pool.pool.lock.unlock();
+        const payload = try std.fmt.allocPrint(alloc, "{{\"ok\":true,\"users\":{d},\"sessions\":{d},\"messages\":{d},\"poolAccepted\":{d},\"poolWorkers\":{d}}}", .{ users, sessions, messages, accepted, workers });
         return std.fmt.allocPrint(alloc, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n{s}", .{ payload.len, payload });
     }
     if (std.mem.eql(u8, path, "/api/pool")) {

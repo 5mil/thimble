@@ -19,6 +19,7 @@ pub const Pool = struct {
         threads: u32,
         agent: []u8,
         shares: u64 = 0,
+        seen: i64 = 0,
     };
 
     pub fn init(alloc: std.mem.Allocator) Pool {
@@ -141,11 +142,23 @@ fn loadParty() void {
 }
 
 fn saveParty() void {
-    var file = std.fs.cwd().createFile("party.db", .{}) catch return;
-    defer file.close();
+    var buf = std.ArrayList(u8).init(pool.alloc);
+    defer buf.deinit();
     for (pool.workers.items) |w| {
-        file.writer().print("{s}\t{s}\t{s}\t{d}\n", .{ w.name, w.party, w.algo, w.shares }) catch return;
+        buf.writer().print("{s}\t{s}\t{s}\t{d}\n", .{ w.name, w.party, w.algo, w.shares }) catch return;
     }
+    const tmp = "party.db.tmp";
+    var file = std.fs.cwd().createFile(tmp, .{}) catch return;
+    file.writeAll(buf.items) catch {
+        file.close();
+        return;
+    };
+    file.close();
+    std.fs.cwd().rename(tmp, "party.db") catch {
+        var direct = std.fs.cwd().createFile("party.db", .{}) catch return;
+        defer direct.close();
+        direct.writeAll(buf.items) catch return;
+    };
 }
 
 fn shareOk(algo: []const u8, worker: []const u8, nonce: []const u8) bool {
@@ -225,6 +238,7 @@ fn serve(conn: std.net.Server.Connection, algo: []const u8) void {
             if (ok and pool.accepted % 50 == 0) pool.blocks += 1;
             if (ok) for (pool.workers.items) |*w| if (std.mem.eql(u8, w.name, worker[0..worker_len])) {
                 w.shares += 1;
+                w.seen = std.time.timestamp();
             };
             pool.lock.unlock();
             if (ok) saveParty();
@@ -253,7 +267,32 @@ fn listen(port: u16, algo: []const u8) void {
 
 pub fn start() !void {
     loadParty();
-    for (algos, ports) |algo, port| {
+    var enabled = [_]bool{true} ** ports.len;
+    if (std.fs.cwd().readFileAlloc(pool.alloc, "pools.cfg", 1 << 16)) |raw| {
+        for (&enabled) |*on| on.* = false;
+        var it = std.mem.splitScalar(u8, raw, '\n');
+        while (it.next()) |line| {
+            if (line.len == 0 or line[0] == '#') continue;
+            var parts = std.mem.splitScalar(u8, line, '\t');
+            _ = parts.next();
+            _ = parts.next();
+            const port = std.fmt.parseInt(u16, parts.next() orelse "0", 10) catch 0;
+            const on = std.mem.eql(u8, parts.next() orelse "0", "1");
+            if (!on) continue;
+            for (ports, 0..) |p, i| {
+                if (p == port) enabled[i] = true;
+            }
+        }
+        var any = false;
+        for (enabled) |on| {
+            if (on) any = true;
+        }
+        if (!any) {
+            for (&enabled) |*on| on.* = true;
+        }
+    } else |_| {}
+    for (algos, ports, enabled) |algo, port, on| {
+        if (!on) continue;
         const thread = try std.Thread.spawn(.{}, listen, .{ port, algo });
         thread.detach();
     }

@@ -27,6 +27,17 @@ pub fn build(b: *std.Build) void {
     client.linkSystemLibrary("winhttp");
     b.installArtifact(client);
 
+    const windows_server = b.addExecutable(.{
+        .name = "AmericaOnlineServer",
+        .root_source_file = b.path("src/server.zig"),
+        .target = windows,
+        .optimize = optimize,
+    });
+    windows_server.subsystem = .Windows;
+    windows_server.linkSystemLibrary("user32");
+    windows_server.linkSystemLibrary("gdi32");
+    b.installArtifact(windows_server);
+
     const miner = b.addExecutable(.{
         .name = "aol-miner",
         .root_source_file = b.path("src/miner.zig"),
