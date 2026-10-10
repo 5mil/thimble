@@ -38,7 +38,10 @@ extern "user32" fn AppendMenuA(menu: HMENU, flags: u32, id: usize, text: [*:0]co
 extern "user32" fn SetMenu(hwnd: HWND, menu: HMENU) callconv(WINAPI) i32;
 extern "user32" fn SetTimer(hwnd: HWND, id: usize, ms: u32, proc: ?*anyopaque) callconv(WINAPI) usize;
 extern "kernel32" fn GetModuleHandleA(name: ?[*:0]const u8) callconv(WINAPI) HINSTANCE;
+extern "comctl32" fn InitCommonControls() callconv(WINAPI) void;
 extern "gdi32" fn CreateSolidBrush(color: u32) callconv(WINAPI) HBRUSH;
+const PBM_SETPOS: u32 = 0x0402;
+const PBM_SETRANGE: u32 = 0x0401;
 
 const WS_OVERLAPPEDWINDOW: u32 = 0x00CF0000;
 const WS_CHILD: u32 = 0x40000000;
@@ -86,6 +89,7 @@ var keep_all = true;
 var configured = false;
 
 var action_line: HWND = undefined;
+var progress_bar: HWND = undefined;
 var main_hwnd: HWND = undefined;
 var settings_hwnd: ?HWND = null;
 var repo_box: HWND = undefined;
@@ -201,6 +205,10 @@ fn showReport() void {
     var stage_buf: [180]u8 = undefined;
     const stage = @import("chain.zig").stageLine(&stage_buf);
     if (stage.len > 10) setText(action_line, stage);
+    if (settings_hwnd != null) {
+        const pct = @import("chain.zig").progress();
+        _ = SendMessageA(progress_bar, PBM_SETPOS, pct, 0);
+    }
     var held: [24][180]u8 = undefined;
     var nline: usize = 0;
     var it = std.mem.splitScalar(u8, text, '\n');
@@ -372,7 +380,10 @@ fn settingsProc(window: HWND, msg: u32, wp: WPARAM, lp: LPARAM) callconv(WINAPI)
             wallet_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 76, 138, 300, 22, 24);
             _ = child(window, "BUTTON", "Save module", WS_CHILD | WS_VISIBLE, 390, 136, 110, 26, 18);
             _ = child(window, "BUTTON", "Start or stop selected", WS_CHILD | WS_VISIBLE, 508, 136, 160, 26, 19);
-            action_line = child(window, "STATIC", "Pick a coin, or paste a repo, then Build and open pool.", WS_CHILD | WS_VISIBLE, 12, 172, 600, 16, 28);
+            action_line = child(window, "STATIC", "Pick a coin, or paste a repo, then Build and open pool.", WS_CHILD | WS_VISIBLE, 12, 172, 500, 16, 28);
+            progress_bar = child(window, "msctls_progress32", "", WS_CHILD | WS_VISIBLE, 520, 170, 260, 18, 29);
+            _ = SendMessageA(progress_bar, PBM_SETRANGE, 0, 100 << 16);
+            _ = SendMessageA(progress_bar, PBM_SETPOS, 0, 0);
             _ = child(window, "STATIC", "MODULES", WS_CHILD | WS_VISIBLE, 12, 192, 80, 16, 4);
             settings_list = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 12, 210, 768, 180, 20);
             paintSettingsList();
@@ -443,6 +454,7 @@ fn mainProc(window: HWND, msg: u32, wp: WPARAM, lp: LPARAM) callconv(WINAPI) LRE
 }
 
 pub fn open() void {
+    InitCommonControls();
     loadModules();
     brush = CreateSolidBrush(0x00181012);
     const inst = GetModuleHandleA(null);
