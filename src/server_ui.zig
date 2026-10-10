@@ -67,15 +67,15 @@ const ID_SETTINGS: usize = 101;
 const ID_REFRESH: usize = 102;
 const ID_EXIT: usize = 103;
 
-const Coin = struct { name: [:0]const u8, algo: [:0]const u8, port: u16, note: [:0]const u8, merges: []const [:0]const u8 };
+const Coin = struct { name: [:0]const u8, algo: [:0]const u8, port: u16, repo: [:0]const u8, merges: []const [:0]const u8 };
 const coins = [_]Coin{
-    .{ .name = "Bitcoin", .algo = "sha256d", .port = 3333, .note = "ASIC. Port 3333.", .merges = &.{ "Namecoin", "Elastos" } },
-    .{ .name = "Litecoin", .algo = "scrypt", .port = 3334, .note = "Scrypt. Port 3334. Merges Dogecoin.", .merges = &.{ "Dogecoin" } },
-    .{ .name = "Monero", .algo = "randomx", .port = 3337, .note = "CPU. Port 3337.", .merges = &.{ "none" } },
-    .{ .name = "Ethereum Classic", .algo = "ethash", .port = 3335, .note = "GPU. Port 3335.", .merges = &.{ "none" } },
-    .{ .name = "Ravencoin", .algo = "kawpow", .port = 3336, .note = "GPU. Port 3336.", .merges = &.{ "none" } },
-    .{ .name = "Dogecoin", .algo = "scrypt", .port = 3334, .note = "Usually under Litecoin.", .merges = &.{ "Litecoin" } },
-    .{ .name = "Yescrypt", .algo = "yescrypt", .port = 3338, .note = "CPU. Port 3338.", .merges = &.{ "none" } },
+    .{ .name = "Bitcoin", .algo = "sha256d", .port = 3333, .repo = "https://github.com/bitcoin/bitcoin", .merges = &.{ "Namecoin", "Elastos" } },
+    .{ .name = "Litecoin", .algo = "scrypt", .port = 3334, .repo = "https://github.com/litecoin-project/litecoin", .merges = &.{ "Dogecoin" } },
+    .{ .name = "Monero", .algo = "randomx", .port = 3337, .repo = "https://github.com/monero-project/monero", .merges = &.{ "none" } },
+    .{ .name = "Ethereum Classic", .algo = "ethash", .port = 3335, .repo = "https://github.com/etclabscore/core-geth", .merges = &.{ "none" } },
+    .{ .name = "Ravencoin", .algo = "kawpow", .port = 3336, .repo = "https://github.com/RavenProject/Ravencoin", .merges = &.{ "none" } },
+    .{ .name = "Dogecoin", .algo = "scrypt", .port = 3334, .repo = "https://github.com/dogecoin/dogecoin", .merges = &.{ "Litecoin" } },
+    .{ .name = "Yescrypt", .algo = "yescrypt", .port = 3338, .repo = "https://github.com/globaltoken/globaltoken", .merges = &.{ "none" } },
 };
 
 const Module = struct { name: [32]u8, name_len: usize, algo: [16]u8, algo_len: usize, port: u16, on: bool, merge: [24]u8, merge_len: usize, bonus: u8, source: [96]u8, source_len: usize, wallet: [64]u8, wallet_len: usize };
@@ -293,6 +293,21 @@ fn fetchWorker(repo: [180]u8, len: usize) void {
     chain.setStage("ready", "cloned and built. height fills when the node answers");
 }
 
+fn fillCoin(index: isize) void {
+    if (index < 0) return;
+    const coin = coins[@intCast(index)];
+    _ = SetWindowTextA(repo_box, coin.repo);
+    fillMerge(index);
+}
+
+fn startCoin() void {
+    const picked = SendMessageA(coin_box, CB_GETCURSEL, 0, 0);
+    if (picked < 0) return;
+    fillCoin(picked);
+    addModule();
+    fetchRepo();
+}
+
 fn fetchRepo() void {
     var repo: [180]u8 = undefined;
     const typed = textOf(repo_box, &repo);
@@ -310,38 +325,37 @@ fn fetchRepo() void {
 fn settingsProc(window: HWND, msg: u32, wp: WPARAM, lp: LPARAM) callconv(WINAPI) LRESULT {
     switch (msg) {
         1 => {
-            _ = child(window, "STATIC", "1. Pick a coin.  2. Say where jobs come from.  3. Save.", WS_CHILD | WS_VISIBLE, 12, 8, 500, 16, 1);
+            _ = child(window, "STATIC", "Pick a coin. Its codebase is already known. Start builds it and opens the pool.", WS_CHILD | WS_VISIBLE, 12, 8, 520, 16, 1);
             _ = child(window, "STATIC", "Coin", WS_CHILD | WS_VISIBLE, 12, 36, 36, 16, 2);
-            coin_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 52, 32, 140, 160, 10);
+            coin_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 52, 32, 160, 160, 10);
             for (coins) |c| _ = SendMessageA(coin_box, CB_ADDSTRING, 0, @bitCast(@intFromPtr(c.name.ptr)));
             _ = SendMessageA(coin_box, CB_SETCURSEL, 0, 0);
-            merge_check = child(window, "BUTTON", "Also merge", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 204, 34, 90, 20, 11);
-            merge_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 298, 32, 110, 120, 12);
-            fillMerge(0);
-            bonus_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 418, 32, 110, 80, 14);
+            merge_check = child(window, "BUTTON", "Also merge", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 224, 34, 90, 20, 11);
+            merge_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 318, 32, 110, 120, 12);
+            bonus_box = child(window, "COMBOBOX", "", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 438, 32, 100, 80, 14);
             inline for ([_][:0]const u8{ "no bonus", "5% house", "10% house" }) |b| _ = SendMessageA(bonus_box, CB_ADDSTRING, 0, @bitCast(@intFromPtr(b.ptr)));
             _ = SendMessageA(bonus_box, CB_SETCURSEL, 0, 0);
-            _ = child(window, "STATIC", "Jobs from", WS_CHILD | WS_VISIBLE, 12, 68, 64, 16, 21);
-            source_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 80, 64, 448, 22, 22);
-            _ = child(window, "STATIC", "A pool (pool.example.com:3333) or a node (http://user:pass@127.0.0.1:8332). Not a GitHub link.", WS_CHILD | WS_VISIBLE, 80, 90, 448, 16, 25);
-            _ = child(window, "STATIC", "Wallet", WS_CHILD | WS_VISIBLE, 12, 116, 48, 16, 23);
-            wallet_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 64, 112, 250, 22, 24);
-            house_check = child(window, "BUTTON", "House mines this one", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 328, 114, 160, 20, 17);
+            _ = child(window, "STATIC", "Codebase", WS_CHILD | WS_VISIBLE, 12, 68, 60, 16, 3);
+            repo_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 76, 64, 360, 22, 5);
+            fillCoin(0);
+            _ = child(window, "BUTTON", "Start this coin", WS_CHILD | WS_VISIBLE, 444, 62, 110, 26, 6);
+            _ = child(window, "STATIC", "Or point at a pool you already have", WS_CHILD | WS_VISIBLE, 12, 96, 220, 16, 21);
+            source_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 236, 92, 318, 22, 22);
+            _ = child(window, "STATIC", "Wallet", WS_CHILD | WS_VISIBLE, 12, 124, 48, 16, 23);
+            wallet_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 64, 120, 250, 22, 24);
+            house_check = child(window, "BUTTON", "House mines this one", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 328, 122, 160, 20, 17);
             if (house_on) _ = SendMessageA(house_check, BM_SETCHECK, 1, 0);
-            _ = child(window, "BUTTON", "Save", WS_CHILD | WS_VISIBLE, 12, 144, 80, 26, 18);
-            _ = child(window, "BUTTON", "Start / stop", WS_CHILD | WS_VISIBLE, 100, 144, 110, 26, 19);
-            _ = child(window, "STATIC", "Codebase", WS_CHILD | WS_VISIBLE, 224, 148, 60, 16, 3);
-            repo_box = child(window, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 288, 144, 190, 22, 5);
-            _ = child(window, "BUTTON", "Fetch", WS_CHILD | WS_VISIBLE, 484, 142, 50, 26, 6);
-            settings_list = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 12, 180, 520, 128, 20);
+            _ = child(window, "BUTTON", "Save only", WS_CHILD | WS_VISIBLE, 12, 152, 90, 26, 18);
+            _ = child(window, "BUTTON", "Start / stop", WS_CHILD | WS_VISIBLE, 110, 152, 110, 26, 19);
+            settings_list = child(window, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL, 12, 186, 540, 120, 20);
             paintSettingsList();
             _ = SetFocus(source_box);
             return 0;
         },
         WM_COMMAND => {
             const id = wp & 0xffff;
-            if (id == 10 and (wp >> 16) == CBN_SELCHANGE) fillMerge(SendMessageA(coin_box, CB_GETCURSEL, 0, 0));
-            if (id == 6) fetchRepo();
+            if (id == 10 and (wp >> 16) == CBN_SELCHANGE) fillCoin(SendMessageA(coin_box, CB_GETCURSEL, 0, 0));
+            if (id == 6) startCoin();
             if (id == 18) addModule();
             if (id == 19) toggleModule();
             return 0;
